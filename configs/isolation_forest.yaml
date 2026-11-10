@@ -1,0 +1,5 @@
+# C — TODO: chọn score threshold trên validation; không dùng test.
+random_seed: 42
+n_estimators: 200
+training: benign_only
+threshold: null

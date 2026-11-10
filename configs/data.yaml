@@ -1,0 +1,14 @@
+# D1-D4 — A phải điền theo dataset thực, không mặc định sẵn schema.
+dataset:
+  name: CIRA-CIC-DoHBrw-2020  # dataset dự kiến; chưa xác nhận tệp và nhãn
+  raw_dir: data/raw
+  master_file: data/interim/master_dataset.parquet
+  flow_features_file: data/interim/flow_features.parquet
+  packet_metadata_file: data/interim/packet_metadata.parquet
+  label_mapping: null  # TODO: xác minh nhãn CSV thực tế
+split:
+  strategy: group_by_capture  # TODO: xác minh nhóm đủ hai lớp
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42

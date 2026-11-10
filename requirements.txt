@@ -1,0 +1,14 @@
+# Dependency candidates — chỉ cài khi bắt đầu triển khai, chưa có mã mô hình hoàn chỉnh.
+numpy
+pandas
+pyarrow
+scikit-learn
+xgboost
+joblib
+pyyaml
+matplotlib
+seaborn
+torch
+streamlit
+plotly
+pytest

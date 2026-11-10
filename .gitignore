@@ -1,0 +1,38 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.env
+.DS_Store
+
+# Data files: giữ thư mục thông qua .gitkeep
+data/raw/**
+!data/raw/.gitkeep
+data/interim/**
+!data/interim/.gitkeep
+data/processed/**
+!data/processed/**/
+!data/processed/**/.gitkeep
+splits/*.csv
+splits/*.json
+models/**
+!models/.gitkeep
+outputs/**
+!outputs/**/
+!outputs/**/.gitkeep
+reports/figures/**
+!reports/figures/.gitkeep
+
+# Large data and weights, wherever they might be copied
+*.pcap
+*.pcapng
+*.parquet
+*.npy
+*.npz
+*.pt
+*.pth
+*.joblib
+*.pkl

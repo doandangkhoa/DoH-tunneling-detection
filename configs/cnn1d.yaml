@@ -1,0 +1,7 @@
+# D — TODO: triển khai chuyển đổi PCAP -> sequence, fit normalization trên train.
+random_seed: 42
+sequence_length: 32
+features: [packet_length, direction, interarrival_time]
+channels: 3
+batch_size: 64
+epochs: 30
