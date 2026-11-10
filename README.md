@@ -183,4 +183,239 @@ git branch -a
 
 Yêu cầu đề xuất:
 
-- Python 3.10 trở lên,
+- Python 3.10 trở lên, tùy khả năng tương thích của thư viện.
+- Git.
+- Môi trường Linux/Ubuntu được khuyến nghị.
+
+Tạo môi trường ảo:
+
+```bash
+python3 -m venv .venv
+```
+
+Kích hoạt:
+
+```bash
+source .venv/bin/activate
+```
+
+Cài đặt dependencies:
+
+```bash
+python -m pip install --upgrade pip
+
+pip install -r requirements.txt
+```
+
+> [!NOTE]
+> `requirements.txt` hiện chứa các thư viện dự kiến phục vụ quá trình phát triển. Việc cài đặt dependencies không có nghĩa toàn bộ pipeline đã sẵn sàng chạy.
+
+### 5.3. Đọc tài liệu dự án
+
+Trước khi bắt đầu lập trình, mỗi thành viên cần đọc:
+
+| Document | Description |
+|---|---|
+| [TODO.md](TODO.md) | Danh sách nhiệm vụ, tiến độ và điều kiện nghiệm thu |
+| [Data & Output Contracts](docs/contracts.md) | Cấu trúc dữ liệu đầu vào và đầu ra |
+| [Branch Guide](docs/branch_guide.md) | Hướng dẫn sử dụng nhánh |
+| [Git Workflow](docs/git_workflow.md) | Quy trình Git, Pull Request và Code Review |
+
+---
+
+## 6. Git Workflow
+
+### 6.1. Branch Structure
+
+Mỗi thành viên làm việc trên branch tương ứng:
+
+| Owner | Branch |
+|---|---|
+| A | `feature/data-pipeline` |
+| B | `feature/xgboost` |
+| C | `feature/isolation-forest` |
+| D | `feature/cnn1d` |
+| Production/Integration | `main` |
+
+Nhánh `main` được sử dụng để lưu phiên bản đã được kiểm tra và tích hợp.
+
+### 6.2. Chuyển sang branch làm việc
+
+Ví dụ với thành viên B:
+
+```bash
+git fetch origin
+
+git switch --track origin/feature/xgboost
+```
+
+Nếu branch đã tồn tại ở local:
+
+```bash
+git switch feature/xgboost
+```
+
+### 6.3. Commit Convention
+
+Sử dụng cấu trúc:
+
+```text
+<type>(<scope>): <description>
+```
+
+Ví dụ:
+
+```bash
+git commit -m "feat(data): implement TLS flow extraction"
+
+git commit -m "feat(xgboost): implement baseline training"
+
+git commit -m "feat(isolation-forest): add anomaly scoring"
+
+git commit -m "feat(cnn1d): implement packet sequence dataset"
+
+git commit -m "fix(evaluation): correct FPR calculation"
+
+git commit -m "docs(readme): update setup instructions"
+```
+
+Các loại commit khuyến nghị:
+
+| Type | Purpose |
+|---|---|
+| `feat` | Thêm tính năng |
+| `fix` | Sửa lỗi |
+| `docs` | Cập nhật tài liệu |
+| `refactor` | Tái cấu trúc mã nguồn |
+| `test` | Thêm hoặc sửa kiểm thử |
+| `chore` | Bảo trì, cấu hình |
+
+### 6.5. Pull Request Rules
+
+Mỗi Pull Request cần:
+
+- Liên kết với Task ID hoặc GitHub Issue.
+- Mô tả thay đổi đã thực hiện.
+- Liệt kê các file hoặc module bị ảnh hưởng.
+- Có hướng dẫn kiểm thử hoặc bằng chứng kiểm thử.
+- Được ít nhất một thành viên khác review trước khi merge.
+
+Không push trực tiếp vào `main` trong quy trình làm việc thông thường.
+
+---
+
+## 7. Data Pipeline & Contracts
+
+### 7.1. Data Processing Workflow
+
+```text
+Raw Dataset (PCAP / CSV)
+           │
+           ▼
+     Dataset Audit
+           │
+           ▼
+    TLS Flow Filtering
+           │
+           ▼
+    Flow/Packet Mapping
+           │
+           ▼
+     Label Validation
+           │
+           ▼
+      Master Dataset
+           │
+           ▼
+    Train / Val / Test
+           │
+     ┌─────┴─────┐
+     │           │
+     ▼           ▼
+Flow Features  Packet Sequences
+     │           │
+  ┌──┴──┐        │
+  ▼     ▼        ▼
+ XGB    IF     1D-CNN
+  │     │        │
+  └─────┴────────┘
+        │
+        ▼
+   Model Evaluation
+        │
+        ▼
+   Comparison Report
+        │
+        ▼
+ Streamlit Dashboard
+```
+
+### 7.2. Data Contract
+
+Các mô hình phải sử dụng dữ liệu được tạo từ cùng một master dataset.
+
+| Artifact | Owner | Description |
+|---|---|---|
+| `data/interim/master_dataset.parquet` | A | Flow ID, sample ID, label và metadata |
+| `data/interim/flow_features.parquet` | A | Flow-level features |
+| `data/interim/packet_metadata.parquet` | A | Packet-level features |
+| `splits/train_ids.csv` | A | Training sample IDs |
+| `splits/val_ids.csv` | A | Validation sample IDs |
+| `splits/test_ids.csv` | A | Testing sample IDs |
+
+**Yêu cầu bắt buộc:**
+
+- `sample_id` phải duy nhất ở mức flow.
+- Nhãn nhị phân thống nhất: `0 = Benign`, `1 = Malicious`.
+- Không có mẫu trùng giữa train, validation và test.
+- Không tự chia lại dữ liệu trong từng module mô hình.
+- Phải xác minh ánh xạ PCAP ↔ flow ↔ label.
+- Các bước preprocessing có học tham số chỉ được fit trên tập train.
+
+Chi tiết xem tại [docs/contracts.md](docs/contracts.md).
+
+### 7.3. Model Output Contract
+
+Mỗi mô hình phải xuất kết quả dự đoán theo cùng định dạng:
+
+```text
+outputs/<model_name>/predictions.parquet
+```
+
+Schema:
+
+| Field | Type | Description |
+|---|---|---|
+| `sample_id` | String | Flow identifier |
+| `model` | String | Model name |
+| `y_true` | Integer | Ground truth label |
+| `y_score` | Float | Model prediction/anomaly score |
+| `y_pred` | Integer | Predicted label |
+
+Quy ước `y_score` càng cao thì mẫu càng có khả năng thuộc lớp malicious.
+
+**Lưu ý:** `y_score` của Isolation Forest không nhất thiết là xác suất.
+
+Ba mô hình phải sử dụng **cùng tập `sample_id` trong test set** khi thực hiện phép so sánh trực tiếp.
+
+---
+
+## 8. Model Evaluation
+
+Các mô hình được đánh giá bằng những chỉ số thống nhất.
+
+| Metric | Description |
+|---|---|
+| Accuracy | Tỷ lệ dự đoán chính xác |
+| Precision | Tỷ lệ cảnh báo đúng |
+| Recall | Tỷ lệ phát hiện lưu lượng độc hại |
+| F1-score | Trung bình điều hòa Precision và Recall |
+| PR-AUC | Diện tích dưới đường Precision–Recall |
+| FPR | Tỷ lệ cảnh báo sai trên lưu lượng bình thường |
+| Training Time | Thời gian huấn luyện |
+| Inference Latency | Thời gian suy luận |
+| Model Size | Kích thước mô hình |
+
+Đối với bài toán phát hiện xâm nhập, các chỉ số **Recall, Precision, F1-score, PR-AUC và FPR** được ưu tiên.
+
+Không sử dụng kết quả trên test set để lựa chọn hyperparameters, features hoặc threshold.
