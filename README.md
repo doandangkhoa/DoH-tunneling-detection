@@ -3,7 +3,7 @@
 
 **Network Intrusion Detection Using XGBoost, Isolation Forest, and 1D-CNN**
 
-> **Đề tài:** Phát hiện bất thường trong lưu lượng mạng mã hóa TLS bằng các phương pháp học máy: XGBoost, Isolation Forest và 1D-CNN.
+> **Đề tài:** Phát hiện hành vi tấn công DoH Tunneling bằng các phương pháp học máy: XGBoost, Isolation Forest và 1D-CNN.
 >
 > **Nhóm thực hiện:** 4 thành viên (A/B/C/D).
 >
@@ -13,7 +13,7 @@
 
 ## 1. Giới thiệu dự án
 
-Dự án tập trung nghiên cứu và xây dựng một hệ thống phát hiện hành vi bất thường trong lưu lượng mạng mã hóa TLS (*Transport Layer Security*) mà không cần giải mã nội dung truyền tải (*payload*).
+Dự án tập trung nghiên cứu và xây dựng một hệ thống phát hiện hành vi DoH Tunneling Attack mà không cần giải mã nội dung truyền tải (*payload*).
 
 Hệ thống sử dụng các đặc trưng thống kê của luồng mạng (*flow-level features*) và chuỗi đặc trưng gói tin (*packet-level sequences*) để huấn luyện, đánh giá và so sánh ba thuật toán:
 
@@ -87,7 +87,7 @@ Dự án được chia thành bốn nhóm trách nhiệm nhằm hạn chế xung
 ## 4. Cấu trúc thư mục dự án
 
 ```text
-tls-anomaly-detection/
+DoH-tunneling-detection/
 │
 ├── .github/                     # GitHub Actions, Issue/PR templates
 │
@@ -163,9 +163,9 @@ Chịu trách nhiệm xây dựng chuỗi packet-level và triển khai mô hìn
 ### 5.1. Clone repository
 
 ```bash
-git clone https://github.com/doandangkhoa/tls-anomaly-detection.git
+git clone https://github.com/doandangkhoa/DoH-tunneling-detection.git
 
-cd tls-anomaly-detection
+cd DoH-tunneling-detection
 ```
 
 Kiểm tra trạng thái Git:
