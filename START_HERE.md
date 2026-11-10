@@ -73,8 +73,3 @@ Các kiểm tra này chỉ kiểm tra **bộ khung và cú pháp Python**, chưa
 - **D9:** ba mô hình xuất cùng định dạng `predictions.parquet` trên cùng test IDs.
 - **D12:** evaluator chung, bảng so sánh, Streamlit demo và báo cáo.
 
-## Hợp tác không dẫm việc
-
-- Chỉ 1 owner quyết định sửa schema một module. Thay schema chung phải mở issue và có review từ bên sử dụng.
-- Không commit PCAP thật, mô hình lớn, `.venv` hay dữ liệu có hạn chế sử dụng.
-- Mỗi PR phải gắn mã Task ID từ TODO và báo rõ thay đổi về input/output.
