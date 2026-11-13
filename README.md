@@ -54,7 +54,7 @@ Isolation Forest không dùng malicious để fit cây, nhưng **nhãn validatio
 2. Mở [Công việc triển khai](TODO.md) để xem phần code của mình.
 3. Làm việc trên nhánh tương ứng theo [hướng dẫn branch](docs/branch_guide.md).
 
-Pipeline dữ liệu đã có và common đã sẵn sàng để train. Các module mô hình, evaluator và dashboard hiện là khung cần triển khai. B/C/D có thể bắt đầu song song ngay sau khi nhận dữ liệu.
+Pipeline dữ liệu đã có và common đã sẵn sàng để train. Các module mô hình, evaluator và dashboard hiện là khung cần triển khai. B/C/D có thể bắt đầu song song ngay sau khi nhận dữ liệu. B/C/D chỉ train và xuất model/thông tin theo [quy ước bàn giao](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu); A tổng hợp metric, biểu đồ, so sánh và dashboard.
 
 ## Thiết lập môi trường
 
@@ -80,10 +80,10 @@ Dùng cùng gói dữ liệu cho cả ba mô hình. Không cần chạy lại x�
 
 | Thành viên | Phần triển khai | Dữ liệu dùng khi so sánh chung | Nhánh |
 |---|---|---|---|
-| A | Dữ liệu, đóng gói và tích hợp | `src/data/`, `scripts/`, `splits/` | `feature/data-pipeline` |
-| B | XGBoost và evaluator chung | `data/processed/xgboost/common/` | `feature/xgboost` |
-| C | Isolation Forest và dashboard | `data/processed/isolation_forest/common/` | `feature/isolation-forest` |
-| D | Sequence loader và 1D-CNN | `data/processed/cnn1d/` | `feature/cnn1d` |
+| A | Dữ liệu, evaluator, so sánh và dashboard | `src/data/`, `src/evaluation/`, `scripts/`, `dashboard/` | `feature/data-pipeline` |
+| B | Train XGBoost và xuất kết quả | `data/processed/xgboost/common/` | `feature/xgboost` |
+| C | Train Isolation Forest và xuất kết quả | `data/processed/isolation_forest/common/` | `feature/isolation-forest` |
+| D | Train 1D-CNN và xuất kết quả | `data/processed/cnn1d/` | `feature/cnn1d` |
 
 Common có 168.597 flow train, 8.092 val và 13.411 test. IF train chỉ gồm 5.383 benign trong common train; val/test giống hai mô hình còn lại. Chi tiết shape, array keys, mask và code nạp dữ liệu nằm trong [training guide](docs/TRAINING_GUIDE.md#2-mỗi-thành-viên-dùng-bộ-nào).
 
@@ -97,14 +97,14 @@ flowchart LR
     B --> P["Prediction cùng test IDs"]
     C --> P
     D --> P
-    P --> Q["A + B: Kiểm tra ID và nhãn"]
-    Q --> E["B: Evaluator chung"]
-    E --> U["C: Dashboard và demo"]
+    P --> Q["A: Kiểm tra ID và nhãn"]
+    Q --> E["A: Evaluator và so sánh"]
+    E --> U["A: Dashboard và demo"]
 ```
 
 Train dùng để học mô hình; validation để chọn cấu hình và threshold. Chỉ chạy đánh giá test cuối sau khi khóa mô hình/ngưỡng. Không tự chia lại dữ liệu hoặc fit preprocessing trên val/test.
 
-Mỗi mô hình xuất `outputs/<model>/predictions.parquet` gồm `sample_id`, `model`, `y_true`, `y_score`, `y_pred`, `threshold`, `split`. Score càng cao càng nghi malicious; IF score không nhất thiết là xác suất. Ba file phải khớp toàn bộ ID và nhãn test. Xem [chuẩn prediction và đánh giá](docs/TRAINING_GUIDE.md#4-xuất-kết-quả-để-so-sánh-chung).
+Mỗi mô hình xuất `outputs/<model>/predictions.parquet` gồm `sample_id`, `model`, `y_true`, `y_score`, `y_pred`, `threshold`, `split`. Score càng cao càng nghi malicious; IF score không nhất thiết là xác suất. Ba file phải khớp toàn bộ ID và nhãn test. Tên file model, config, số liệu runtime và kết quả evaluator được thống nhất tại [bảng đầu ra của từng người](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu). Xem [chuẩn prediction và đánh giá](docs/TRAINING_GUIDE.md#4-xuất-kết-quả-để-so-sánh-chung).
 
 ## Các bước tiếp theo và sản phẩm cuối
 
@@ -113,11 +113,11 @@ Vòng triển khai đầu dùng **một cấu hình baseline, một seed cho m�
 | Bước | Phụ trách | Việc làm | Sản phẩm |
 |---|---|---|---|
 | 1. Train baseline | B/C/D | Nạp common, train theo YAML, chọn threshold bằng validation | Model/checkpoint, config, validation score, threshold đã khóa |
-| 2. Predict test | B/C/D; A kiểm tra | Sau khi khóa model/ngưỡng, xuất prediction trên cùng test set | Ba file `predictions.parquet`, đủ 13.411 ID và nhãn đúng |
-| 3. Đánh giá | B | Chạy một evaluator cho cả ba mô hình | Bảng Precision/Recall/F1/AP/FPR, confusion matrix và PR curve |
-| 4. Phân tích ngắn | B/C/D | Recall/support theo công cụ, FPR theo browser; xem vài FP/FN thực tế | Bảng phân nhóm và nhận xét dựa trên kết quả |
-| 5. Đo chi phí | B/C/D | Cùng máy và test set; ghi batch size, warm-up và phạm vi đo | Thời gian train/inference, kích thước model |
-| 6. Demo | C; A tích hợp | Dashboard một trang đọc sẵn prediction và metric | So sánh ba mô hình, biểu đồ và ví dụ dự đoán sai |
+| 2. Predict test | B/C/D; A nhận kết quả | Sau khi khóa model/ngưỡng, xuất prediction trên cùng test set | Ba file `predictions.parquet`, đủ 13.411 ID và nhãn đúng |
+| 3. Đánh giá | A | Chạy một evaluator cho cả ba mô hình | Bảng Precision/Recall/F1/AP/FPR, confusion matrix và PR curve |
+| 4. Phân tích ngắn | A | Recall/support theo công cụ, FPR theo browser; xem vài FP/FN thực tế | Bảng phân nhóm và nhận xét dựa trên kết quả |
+| 5. Đo chi phí | B/C/D ghi số đo; A đo lại để so sánh | Cùng máy và test set; ghi batch size, warm-up và phạm vi đo | Thời gian train/inference, kích thước model |
+| 6. Demo | A | Dashboard một trang đọc sẵn prediction và metric | So sánh ba mô hình, biểu đồ và ví dụ dự đoán sai |
 | 7. Chạy lại | A + cả nhóm | Thử từ môi trường sạch và bổ sung lệnh CLI thực tế | Hướng dẫn tái hiện kết quả và demo hoạt động |
 
 AP dùng `average_precision_score`; FPR = FP / (FP + TN), Recall = TP / (TP + FN). Báo cáo support cùng chỉ số theo nguồn. Accuracy có thể bổ sung, không dùng riêng để kết luận. Thời gian inference offline không chứng minh hệ thống chạy thời gian thực.
@@ -165,10 +165,10 @@ DoH-tunneling-detection/
 │   ├── xgboost/                 # B: loader, train và predict XGBoost
 │   ├── isolation_forest/        # C: loader, train và predict IF
 │   ├── cnn1d/                   # D: sequence loader, model, train và predict CNN
-│   └── evaluation/              # B: metric, evaluator và biểu đồ chung
+│   └── evaluation/              # A: metric, evaluator và biểu đồ chung
 ├── scripts/                     # Kiểm tra repo, audit/validate và đóng gói dữ liệu
 ├── tests/                       # Unit/integration tests; hiện có tests parser PCAP
-├── dashboard/                   # C: ứng dụng Streamlit so sánh kết quả
+├── dashboard/                   # A: ứng dụng Streamlit so sánh kết quả
 ├── models/                      # Model đã fit và checkpoint để nạp lại
 ├── outputs/                     # Prediction theo từng mô hình
 │   ├── xgboost/

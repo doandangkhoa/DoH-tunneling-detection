@@ -1,65 +1,54 @@
 # Công việc triển khai
 
-Điểm bắt đầu: [README](README.md) → [Hướng dẫn dữ liệu](docs/TRAINING_GUIDE.md). Danh sách dưới đây chỉ mô tả phần cần triển khai và đầu ra; trao đổi phân công chi tiết và tiến độ trong buổi họp nhóm.
+Điểm bắt đầu: [README](README.md) → [Hướng dẫn dữ liệu](docs/TRAINING_GUIDE.md). B/C/D phụ trách huấn luyện và xuất kết quả mô hình; A phụ trách dữ liệu, đánh giá, so sánh và demo. Tiến độ trao đổi trong buổi họp nhóm.
 
 ## Phạm vi vòng triển khai đầu
 
-Mỗi mô hình dùng một cấu hình baseline và seed 42; CNN dùng 32 packet. Cả ba dùng common 190.100 flow; chưa cần train bộ full. Xem [quy trình chung](docs/TRAINING_GUIDE.md#phạm-vi-huấn-luyện-đã-thống-nhất). Validation chọn threshold theo cấu hình, chỉ thử thêm ít tham số nếu baseline có vấn đề rõ ràng. Không cần grid search, nhiều seed, SHAP, sequence 64 packet hoặc phát hiện thời gian thực trong vòng này. Luồng và sản phẩm cuối xem [README](README.md#các-bước-tiếp-theo-và-sản-phẩm-cuối).
+Cả nhóm dùng common 190.100 flow. Mỗi mô hình một baseline, seed train 42; CNN dùng 32 packet. Validation chọn checkpoint/cấu hình và threshold; chỉ đánh giá test sau khi khóa mô hình/ngưỡng. Chưa cần train bộ full, nhiều seed, grid search hoặc sequence length khác.
 
-## A — Dữ liệu và tích hợp
+## A — Dữ liệu, đánh giá và tổng hợp
 
-Pipeline tạo master, flow features, sequence, split và common đã có. Pipeline chính nằm trong `src/data/prepare_dataset.py`, `src/data/prepare_packets.py` và `src/data/finalize_training.py`. Dùng `scripts/audit_training_data.py`, `scripts/audit_packet_mapping.py`, `scripts/validate_prepared_data.py` và `scripts/package_training_data.py` để kiểm tra và đóng gói khi cần sửa dữ liệu.
+Code: `src/data/`, `src/evaluation/`, `scripts/`, `dashboard/app.py`.
 
-- Bàn giao `common.tar.gz` cho B/C/D; hỗ trợ xử lý lỗi đọc dữ liệu và giữ cùng bộ common trong một lần thí nghiệm.
-- Bổ sung kiểm tra độc lập các tham số imputer/scaler từ đúng train của mỗi profile; IF chỉ fit benign train.
-- Phối hợp B triển khai kiểm tra prediction: ID duy nhất, đủ 13.411 test flow, nhãn khớp dữ liệu và ba mô hình khớp nhau.
-- Chạy tích hợp trên môi trường sạch: giải nén dữ liệu → nạp model → prediction → evaluator → dashboard. Cập nhật lệnh chạy thực tế vào tài liệu khi đã hoạt động.
+- Bàn giao `common.tar.gz` và hỗ trợ B/C/D nạp đúng dữ liệu. Pipeline hiện tại gồm `prepare_dataset.py`, `prepare_packets.py`, `finalize_training.py`; các script audit/validate/đóng gói đã có.
+- Nhận model, prediction và thông tin thí nghiệm theo [quy ước đầu ra](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu).
+- Kiểm tra ba prediction có đủ cùng 13.411 test IDs, nhãn đúng, không trùng/thiếu và score/threshold đúng quy ước; thử nạp lại model.
+- Triển khai evaluator chung và kiểm thử metric/schema: Precision, Recall, F1, AP, FPR, TP/FN/FP/TN; Recall/support theo công cụ và FPR theo browser.
+- Tổng hợp bảng vào `reports/tables/`, biểu đồ vào `reports/figures/` theo [mục 4.4](docs/TRAINING_GUIDE.md#44-a-nhận-kết-quả-và-tổng-hợp); phân tích FP/FN từ prediction và metadata.
+- Đo lại inference của các model đã lưu trên cùng máy để so sánh chi phí; tổng hợp thời gian train và kích thước model từ run summary.
+- Làm dashboard một trang đọc kết quả có sẵn: metric, PR curve, confusion matrix, chi phí và ví dụ dự đoán sai.
+- Chạy tích hợp từ dữ liệu → model đã lưu → prediction → evaluator → dashboard; cập nhật lệnh chạy thực tế trong README và chuẩn bị phần so sánh/giới hạn từ kết quả thật.
 
-## B — XGBoost và đánh giá chung
+## B — XGBoost
 
-Code: `src/xgboost/`, `src/evaluation/`. Cấu hình: [xgboost.yaml](configs/xgboost.yaml). Đầu vào: `data/processed/xgboost/common/`.
+Code: `src/xgboost/`. Cấu hình: [xgboost.yaml](configs/xgboost.yaml). Đầu vào: `data/processed/xgboost/common/`.
 
-- Triển khai loader/preprocess đọc NPZ sẵn có, giữ feature order và ID; viết train/predict có thể chạy từ CLI.
-- Huấn luyện baseline; chọn cấu hình và threshold bằng validation. Lưu model, config, seed, feature names, validation scores và thời gian train/inference.
-- Xuất `outputs/xgboost/predictions.parquet` theo [chuẩn chung](docs/TRAINING_GUIDE.md#4-xuất-kết-quả-để-so-sánh-chung).
-- Viết một evaluator dùng cho cả ba mô hình: Precision, Recall, F1, AP, FPR, TP/FN/FP/TN; Recall/support theo công cụ và FPR theo browser. Kiểm thử các trường hợp tính metric và dữ liệu đầu vào lỗi.
-- Tạo bảng metric, confusion matrix và PR curve từ prediction; thống nhất file kết quả với C để dashboard đọc trực tiếp. Feature importance có thể bổ sung sau baseline.
+- Triển khai loader/train/predict từ NPZ, giữ feature order và ID; dùng X đã xử lý sẵn.
+- Train baseline, chọn cấu hình/ngưỡng bằng validation, khóa trước test.
+- Xuất model, preprocessing, feature names, config, run summary, validation predictions và test predictions theo [mục 4.1–4.2](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu).
+- Gửi A ba thư mục `models/xgboost/`, `outputs/xgboost/`, `experiments/xgboost/` và lệnh nạp model/predict.
 
-## C — Isolation Forest và dashboard
+## C — Isolation Forest
 
-Code: `src/isolation_forest/`, `dashboard/app.py`. Cấu hình: [isolation_forest.yaml](configs/isolation_forest.yaml). Đầu vào: `data/processed/isolation_forest/common/`.
+Code: `src/isolation_forest/`. Cấu hình: [isolation_forest.yaml](configs/isolation_forest.yaml). Đầu vào: `data/processed/isolation_forest/common/`.
 
-- Triển khai train/predict CLI; chỉ fit benign common train, dùng `X` đã scale sẵn.
-- Chọn cấu hình và threshold bằng validation; đổi chiều anomaly score để điểm cao nghĩa là nghi malicious hơn. Lưu model, config, seed, validation scores và thời gian train/inference.
-- Xuất `outputs/isolation_forest/predictions.parquet` theo [chuẩn chung](docs/TRAINING_GUIDE.md#4-xuất-kết-quả-để-so-sánh-chung); phân tích false positives bằng metadata.
-- Làm dashboard đọc prediction và kết quả evaluator của B: bảng metric, PR curve, confusion matrix, thời gian inference và ví dụ prediction. Hiển thị thông báo dễ hiểu khi thiếu file; phân biệt anomaly score và xác suất.
-- Bổ sung lệnh chạy dashboard vào README khi giao diện hoạt động với output thực.
+- Triển khai train/predict; chỉ fit benign common train, dùng X đã scale sẵn.
+- Chọn cấu hình/ngưỡng bằng validation; dùng `y_score = -score_samples(X)` để điểm cao nghĩa là nghi malicious hơn.
+- Xuất model và thông tin theo cùng [mục 4.1–4.2](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu); predict đủ hai lớp trên val/test.
+- Gửi A ba thư mục `models/isolation_forest/`, `outputs/isolation_forest/`, `experiments/isolation_forest/` và lệnh nạp model/predict.
 
-## D — Sequence loader và 1D-CNN
+## D — 1D-CNN
 
 Code: `src/cnn1d/`. Cấu hình: [cnn1d.yaml](configs/cnn1d.yaml). Đầu vào: `data/processed/cnn1d/`.
 
-- Triển khai loader từ NPZ có sẵn: chuyển `(N,32,3)` sang `(N,3,32)` cho Conv1d, giữ mask/ID/nhãn; không trích lại PCAP hoặc chuẩn hóa `X` lần nữa.
-- Xây Conv1d baseline và train/validation loop; lưu checkpoint, config, seed, loss curves và thời gian train/inference.
-- Dùng mask trong forward/pooling; kiểm thử prediction ở eval không đổi khi thay giá trị padding nhưng giữ mask và packet thật.
-- Giữ prefix 32 packet cho vòng baseline; chọn checkpoint và threshold bằng validation. Các thử nghiệm sequence length khác để sau khi luồng chính hoạt động.
-- Viết predict CLI và xuất `outputs/cnn1d/predictions.parquet` theo [chuẩn chung](docs/TRAINING_GUIDE.md#4-xuất-kết-quả-để-so-sánh-chung).
+- Nạp NPZ, chuyển `(N,32,3)` sang `(N,3,32)`, giữ mask/ID/nhãn; không chuẩn hóa X lần nữa.
+- Xây Conv1d và train/validation loop; chọn checkpoint/ngưỡng bằng validation, giữ prefix 32 packet.
+- Dùng mask trong forward/pooling; kiểm thử prediction ở eval không đổi khi thay padding nhưng giữ packet thật và mask.
+- Xuất checkpoint và thông tin theo [mục 4.1–4.2](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu), thêm `history.csv` và `mask_check.json` để A phân tích/vẽ biểu đồ.
+- Gửi A ba thư mục `models/cnn1d/`, `outputs/cnn1d/`, `experiments/cnn1d/` và lệnh nạp model/predict.
 
-## Sau khi train — hoàn thiện kết quả và demo
+## Quy tắc chung
 
-- **B/C/D:** khóa checkpoint/cấu hình và threshold từ validation; xuất prediction test theo đúng thứ tự ID. Giữ cả score để vẽ PR curve.
-- **A + B:** kiểm tra ba bộ test IDs và nhãn khớp nhau trước khi tính metric.
-- **B:** xuất bảng metric chung vào `reports/tables/`, confusion matrix từng model và PR curve so sánh vào `reports/figures/`.
-- **B/C/D:** xem một số FP/FN thực tế; báo cáo Recall kèm support theo công cụ, FPR kèm FP/TN theo browser. Nếu không có lỗi thì ghi đúng kết quả, không tạo ví dụ giả.
-- **B/C/D:** đo thời gian inference trên cùng máy, ghi batch size, warm-up, số mẫu và có tính preprocessing hay không; lưu thêm thời gian train và kích thước model.
-- **C:** làm dashboard một trang từ kết quả có sẵn, gồm bảng so sánh, PR curve, confusion matrix và sample predictions. Không cần train trực tiếp hoặc nhận PCAP mới khi demo.
-- **A:** chạy lại từ dữ liệu → model đã lưu → prediction → evaluator → dashboard; bổ sung lệnh thực tế trong README.
-- **Cả nhóm:** chuẩn bị phần trình bày ngắn từ kết quả thật: bài toán, ba phương pháp, bảng/biểu đồ, đánh đổi Recall–FPR–chi phí và giới hạn dữ liệu. Không cần thêm bảng tracking hay báo cáo tiến độ.
-
-## Quy tắc triển khai chung
-
-- B/C/D có thể train song song. B và C thống nhất định dạng kết quả evaluator trước khi nối dashboard; A tích hợp sau khi có đủ output.
-- Giữ nguyên split; chỉ dùng validation cho tuning, early stopping và threshold. Không cân bằng lại val/test.
-- Metadata chỉ để truy vết/phân tích, không làm feature. Cả ba mô hình phải dùng common cho phép so sánh chính.
-- Lưu artifact và cấu hình đủ để chạy lại mô hình đã chọn. Các log thực nghiệm phục vụ tái tạo, không cần bảng báo cáo tiến độ riêng.
-- Cách đọc dữ liệu, giới hạn dataset và schema prediction dùng một nguồn tại [training guide](docs/TRAINING_GUIDE.md).
+- B/C/D train song song và bàn giao đúng tên file/thư mục. A tổng hợp sau khi nhận đủ kết quả.
+- Giữ nguyên split và preprocessing; không cân bằng val/test, không tuning theo test. Metadata chỉ để phân tích, không làm feature.
+- Lưu cấu hình, log và artifact đủ để chạy lại mô hình đã chọn; không cần bảng tracking riêng.

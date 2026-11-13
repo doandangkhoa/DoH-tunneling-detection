@@ -2,9 +2,9 @@
 
 | Nhánh | Owner | Khu vực code |
 |---|---|---|
-| `feature/data-pipeline` | A | `src/data/`, `data/`, `splits/` |
-| `feature/xgboost` | B | `src/xgboost/`, `src/evaluation/` |
-| `feature/isolation-forest` | C | `src/isolation_forest/`, `dashboard/` |
+| `feature/data-pipeline` | A | `src/data/`, `data/`, `splits/`, `src/evaluation/`, `dashboard/` |
+| `feature/xgboost` | B | `src/xgboost/` |
+| `feature/isolation-forest` | C | `src/isolation_forest/` |
 | `feature/cnn1d` | D | `src/cnn1d/` |
 
 **Quy trình:** branch → commit → pull request → review → checks → merge `main`.
