@@ -8,7 +8,7 @@ Mỗi mô hình dùng một cấu hình baseline và seed 42; CNN dùng 32 packe
 
 ## A — Dữ liệu và tích hợp
 
-Pipeline tạo master, flow features, sequence, split và common đã có. Tiếp tục dùng `src/data/`, `scripts/audit_training_data.py`, `scripts/validate_prepared_data.py` và `scripts/package_training_data.py` khi cần sửa dữ liệu.
+Pipeline tạo master, flow features, sequence, split và common đã có. Pipeline chính nằm trong `src/data/prepare_dataset.py`, `src/data/prepare_packets.py` và `src/data/finalize_training.py`. Dùng `scripts/audit_training_data.py`, `scripts/audit_packet_mapping.py`, `scripts/validate_prepared_data.py` và `scripts/package_training_data.py` để kiểm tra và đóng gói khi cần sửa dữ liệu.
 
 - Bàn giao `common.tar.gz` cho B/C/D; hỗ trợ xử lý lỗi đọc dữ liệu và giữ cùng bộ common trong một lần thí nghiệm.
 - Bổ sung kiểm tra độc lập các tham số imputer/scaler từ đúng train của mỗi profile; IF chỉ fit benign train.

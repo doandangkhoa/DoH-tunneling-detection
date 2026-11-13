@@ -158,7 +158,10 @@ DoH-tunneling-detection/
 │   └── exports/                 # Gói common.tar.gz gửi cho nhóm
 ├── splits/                      # Manifest train/val/test của bộ tabular đầy đủ
 ├── src/                         # Mã triển khai chính
-│   ├── data/                    # A: chuẩn bị flow/packet, split và preprocessing
+│   ├── data/                    # A: pipeline dữ liệu đang sử dụng
+│   │   ├── prepare_dataset.py   # Lọc CSV, tạo master và split theo nhóm
+│   │   ├── prepare_packets.py   # Ghép PCAP–flow và tạo sequence/common
+│   │   └── finalize_training.py # Fit preprocessing từ train và xuất profile mô hình
 │   ├── xgboost/                 # B: loader, train và predict XGBoost
 │   ├── isolation_forest/        # C: loader, train và predict IF
 │   ├── cnn1d/                   # D: sequence loader, model, train và predict CNN
@@ -172,10 +175,9 @@ DoH-tunneling-detection/
 │   ├── isolation_forest/
 │   └── cnn1d/
 ├── experiments/                 # Cấu hình, seed, log và thời gian từng lần chạy
-├── reports/                     # Bảng metric và biểu đồ kết quả thực nghiệm
-│   ├── tables/
-│   └── figures/
-└── notebooks/                   # Khám phá dữ liệu/thử nghiệm; code dùng chung đặt ở src/
+└── reports/                     # Bảng metric và biểu đồ kết quả thực nghiệm
+    ├── tables/
+    └── figures/
 ```
 
 `data/processed/xgboost/` và `data/processed/isolation_forest/` trên máy A còn chứa bộ full ngoài thư mục `common/`.
