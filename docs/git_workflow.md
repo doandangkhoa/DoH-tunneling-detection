@@ -7,7 +7,7 @@
 | `feature/isolation-forest` | C | `src/isolation_forest/`, `dashboard/` |
 | `feature/cnn1d` | D | `src/cnn1d/` |
 
-**Quy trình:** issue → branch → commit nhỏ theo Task ID → pull request → review → checks → merge `main`.
+**Quy trình:** branch → commit → pull request → review → checks → merge `main`.
 
 Ví dụ:
 
@@ -15,11 +15,13 @@ Ví dụ:
 git switch -c feature/xgboost
 # lập trình trên src/xgboost
 git add src/xgboost
-git commit -m "feat(XGB-01): add baseline scaffold"
+git commit -m "feat(xgboost): add baseline training"
 git push -u origin feature/xgboost
 ```
 
 - **Không commit** dữ liệu PCAP/thật, `.venv`, kết quả lớn hay model weights.
-- Khi sửa schema dùng chung, tạo issue thông báo A/B/C/D; người nhận dữ liệu phải review.
-- Người review kiểm tra PR mô tả input/output, hướng dẫn kiểm thử, evidence và contract.
-- Nếu dùng một branch dài hạn/người, vẫn nên tạo feature branch ngắn cho mỗi issue khi đã quen thao tác Git.
+- Khi sửa schema dùng chung, trao đổi với A/B/C/D; người nhận dữ liệu phải review.
+- Người review kiểm tra PR mô tả input/output, hướng dẫn kiểm thử và chuẩn đầu ra.
+- Nếu dùng một branch dài hạn/người, vẫn nên tạo feature branch ngắn cho mỗi thay đổi khi đã quen thao tác Git.
+
+Xem [phân công triển khai](../TODO.md), [training guide](TRAINING_GUIDE.md) và [thao tác branch](branch_guide.md).

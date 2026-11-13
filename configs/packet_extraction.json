@@ -1,0 +1,19 @@
+{
+  "dataset_version": "common",
+  "browser_window_seconds": null,
+  "tunnel_captures_per_zip": {
+    "dns2tcp": null,
+    "dnscat2": null,
+    "iodine": null
+  },
+  "validation_benign_full_captures": [
+    {
+      "archive": "BenignDoH_NonDoH-Firefox-Google.zip",
+      "member": "Google/medium/dump.pcap"
+    },
+    {
+      "archive": "BenignDoH_NonDoH-Firefox-Google.zip",
+      "member": "Google/small/dump.pcap"
+    }
+  ]
+}

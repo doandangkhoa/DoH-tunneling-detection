@@ -36,3 +36,9 @@ reports/figures/**
 *.pth
 *.joblib
 *.pkl
+
+# Local Parquet dependency
+.runtime-deps/
+
+# Local training handover bundles
+data/exports/**

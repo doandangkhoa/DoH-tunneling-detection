@@ -1,7 +1,43 @@
-# D — TODO: triển khai chuyển đổi PCAP -> sequence, fit normalization trên train.
+# D: đặc tả baseline; model và train loop cần triển khai theo cấu hình này.
 random_seed: 42
-sequence_length: 32
-features: [packet_length, direction, interarrival_time]
-channels: 3
-batch_size: 64
-epochs: 30
+data:
+  directory: data/processed/cnn1d
+  input_key: X
+  label_key: y
+  id_key: sample_id
+  mask_key: mask
+  preprocessing_file: data/processed/cnn1d/preprocessing.json
+  refit_preprocessing: false
+  stored_layout: N,L,C
+  model_layout: N,C,L
+  sequence_length: 32
+  channels: [packet_length, direction, interarrival_time]
+  mask_required: true
+model:
+  input_channels: 3
+  conv_channels: [32, 64]
+  kernel_size: 3
+  padding: same
+  pooling: masked_mean
+  dropout: 0.2
+  output_logits: 1
+training:
+  batch_size: 64
+  epochs: 30
+  optimizer: adam
+  learning_rate: 0.001
+  loss: binary_cross_entropy_with_logits
+  device: auto
+selection:
+  split: val
+  metric: average_precision
+score:
+  method: sigmoid_logits
+threshold:
+  split: val
+  method: maximize_f1
+  value: null
+output:
+  model_directory: models/cnn1d
+  predictions_file: outputs/cnn1d/predictions.parquet
+  experiment_directory: experiments/cnn1d

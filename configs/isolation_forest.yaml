@@ -1,5 +1,31 @@
-# C — TODO: chọn score threshold trên validation; không dùng test.
-random_seed: 42
-n_estimators: 200
-training: benign_only
-threshold: null
+# C: đặc tả baseline cho CLI train/predict cần triển khai.
+data:
+  directory: data/processed/isolation_forest/common
+  input_key: X
+  label_key: y
+  id_key: sample_id
+  feature_names_key: feature_names
+  preprocessing_file: data/processed/isolation_forest/common/preprocessing.json
+  refit_preprocessing: false  # X đã scale từ benign common train.
+training:
+  benign_only: true
+  benign_label: 0
+model:
+  random_state: 42
+  n_estimators: 200
+  max_samples: auto
+  contamination: auto  # Không dùng threshold mặc định của predict để báo cáo cuối.
+  n_jobs: 1
+score:
+  method: negative_score_samples  # y_score = -model.score_samples(X)
+selection:
+  split: val
+  metric: average_precision
+threshold:
+  split: val
+  method: maximize_f1
+  value: null
+output:
+  model_directory: models/isolation_forest
+  predictions_file: outputs/isolation_forest/predictions.parquet
+  experiment_directory: experiments/isolation_forest

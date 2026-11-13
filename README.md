@@ -1,421 +1,206 @@
+<div align="center">
 
-# DoH Tunneling Detection
+# 🛡️ DoH Tunneling Detection
 
-**Network Intrusion Detection Using XGBoost, Isolation Forest, and 1D-CNN**
+**Phát hiện DNS tunneling trong lưu lượng DNS-over-HTTPS mã hóa**
 
-> **Đề tài:** Phát hiện hành vi tấn công DoH Tunneling bằng các phương pháp học máy: XGBoost, Isolation Forest và 1D-CNN.
->
-> **Nhóm thực hiện:** 4 thành viên (A/B/C/D).
->
-> **Trạng thái dự án:** 🟡 Planning & Development
+`XGBoost` · `Isolation Forest` · `1D-CNN` · `CIRA-CIC-DoHBrw-2020`
 
----
+[🚀 Bắt đầu](#bắt-đầu-từ-đâu) · [📂 Cấu trúc project](#cấu-trúc-project) · [📖 Hướng dẫn dữ liệu](docs/TRAINING_GUIDE.md) · [🛠️ Công việc](TODO.md)
 
-## 1. Giới thiệu dự án
-
-Dự án tập trung nghiên cứu và xây dựng một hệ thống phát hiện hành vi DoH Tunneling Attack mà không cần giải mã nội dung truyền tải (*payload*).
-
-Hệ thống sử dụng các đặc trưng thống kê của luồng mạng (*flow-level features*) và chuỗi đặc trưng gói tin (*packet-level sequences*) để huấn luyện, đánh giá và so sánh ba thuật toán:
-
-- **XGBoost:** Phân loại lưu lượng mạng bằng phương pháp học có giám sát (*Supervised Learning*).
-- **Isolation Forest:** Phát hiện hành vi bất thường dựa trên mô hình học từ lưu lượng bình thường (*Anomaly Detection*).
-- **1D-CNN:** Sử dụng mạng nơ-ron tích chập một chiều để học các đặc trưng từ chuỗi gói tin (*Deep Learning*).
-
-### Mục tiêu nghiên cứu
-
-1. Xây dựng quy trình thu thập, kiểm tra và tiền xử lý dữ liệu TLS.
-2. Trích xuất các đặc trưng ở mức flow và packet.
-3. Huấn luyện và tối ưu ba mô hình học máy.
-4. Đánh giá hiệu quả phát hiện dựa trên các chỉ số thống nhất.
-5. So sánh khả năng phát hiện, tỷ lệ cảnh báo sai và chi phí tính toán.
-6. Xây dựng dashboard trực quan hóa kết quả thực nghiệm.
-
-### Phạm vi triển khai
-
-Giai đoạn đầu tập trung vào **phân tích dữ liệu offline**, sử dụng dataset có sẵn.
-
-Hệ thống chưa hướng đến triển khai Network IDS thời gian thực.
+</div>
 
 ---
 
-## 2. Trạng thái hiện tại
+## Giới thiệu đề tài
 
-> [!IMPORTANT]
-> Repository hiện tại là **project scaffold** — bộ khung phục vụ phát triển và phân công công việc.
->
-> Các thư mục và file khởi tạo đã được chuẩn bị, nhưng pipeline xử lý dữ liệu và các mô hình học máy **chưa được triển khai hoàn chỉnh**.
+DNS-over-HTTPS (DoH) truyền các truy vấn DNS qua HTTPS, bảo vệ nội dung truy vấn trong kết nối mã hóa. DNS tunneling lợi dụng cơ chế trao đổi DNS để mang dữ liệu hoặc thông tin điều khiển; khi đi qua DoH, việc quan sát trực tiếp nội dung DNS từ lưu lượng mạng trở nên khó khăn hơn.
 
-| Thành phần | Trạng thái |
+Đề tài nghiên cứu khả năng **phân biệt benign DoH và tunnel DoH bằng đặc trưng hành vi mạng, không giải mã payload**. Dữ liệu lấy từ CIRA-CIC-DoHBrw-2020, gồm lưu lượng browser Chrome/Firefox và các công cụ tunnel dns2tcp, dnscat2, iodine theo kịch bản nguồn.
+
+| Nội dung | Phạm vi thực hiện |
 |---|---|
-| Repository Structure | ✅ Initialized |
-| Team Responsibilities | ✅ Defined |
-| Git Workflow | ✅ Documented |
-| Dataset Inspection | ⬜ Pending |
-| Data Preprocessing | ⬜ Pending |
-| XGBoost Model | ⬜ Pending |
-| Isolation Forest Model | ⬜ Pending |
-| 1D-CNN Model | ⬜ Pending |
-| Model Evaluation | ⬜ Pending |
-| Streamlit Dashboard | ⬜ Pending |
-| Final Report | ⬜ Pending |
+| Bài toán | Phân loại nhị phân: `0 = benign DoH`, `1 = malicious/tunnel DoH` |
+| Dữ liệu quan sát | Thống kê flow và chuỗi độ dài, hướng truyền, thời gian giữa packet |
+| Phương pháp | Học có giám sát, phát hiện bất thường từ benign và học chuỗi bằng CNN |
+| Sản phẩm | Ba baseline, evaluator chung và dashboard so sánh kết quả |
+| Phạm vi | Phân tích offline trên dataset; chưa triển khai IDS thời gian thực |
 
-Danh sách nhiệm vụ chi tiết được quản lý tại [TODO.md](TODO.md).
+### Cơ sở lý thuyết
 
----
+**Flow và packet sequence.** Flow gom các packet thuộc một luồng giao tiếp để tính các thống kê như duration, lượng byte và phân bố thời gian/kích thước. Packet sequence giữ thứ tự các gói để mô hình học biến thiên theo thời gian. Dù payload được mã hóa, độ dài, thời điểm và hướng truyền vẫn cung cấp dấu hiệu có thể dùng để phân loại.
 
-## 3. Phân công thành viên
-
-Dự án được chia thành bốn nhóm trách nhiệm nhằm hạn chế xung đột mã nguồn và hỗ trợ phát triển song song.
-
-| Owner | Role | Modules | Responsibilities |
+| Mô hình | Nguyên lý | Đầu vào trong dự án | Điểm cần khảo sát |
 |---|---|---|---|
-| **A** | Data Engineer / Team Lead | `src/data/`, `data/`, `splits/`, `docs/contracts.md` | Dataset audit, flow/packet mapping, feature extraction, data splitting, QA, integration |
-| **B** | ML Engineer / Evaluation | `src/xgboost/`, `src/evaluation/` | XGBoost training, hyperparameter tuning, metrics, model comparison |
-| **C** | ML Engineer / Dashboard | `src/isolation_forest/`, `dashboard/` | Isolation Forest, anomaly scoring, threshold selection, Streamlit dashboard |
-| **D** | Deep Learning Engineer | `src/cnn1d/` | Packet sequence construction, CNN architecture, training, evaluation |
+| **XGBoost** | Kết hợp nhiều cây quyết định theo boosting, các cây sau cải thiện hàm mục tiêu của tổ hợp | 29 thống kê flow; train có cả hai nhãn | Hiệu quả phân loại trên đặc trưng dạng bảng |
+| **Isolation Forest** | Cô lập mẫu bằng các phép chia ngẫu nhiên; mẫu bất thường thường có đường đi cô lập ngắn hơn | 29 thống kê đã scale; chỉ fit benign train | Khả năng phát hiện tunnel từ mô hình học lưu lượng bình thường và mức cảnh báo sai |
+| **1D-CNN** | Tích chập một chiều học các mẫu cục bộ trên chuỗi packet | Tối đa 32 packet, 3 kênh length/direction/IAT, kèm mask | Khả năng khai thác cấu trúc và thứ tự packet |
 
-### Nguyên tắc phân công
+Isolation Forest không dùng malicious để fit cây, nhưng **nhãn validation vẫn được dùng để chọn cấu hình/ngưỡng**. CNN cần mask để xử lý padding; chỉ lưu mask trong file chưa đủ để mô hình sử dụng nó.
 
-- Mỗi module có một thành viên chịu trách nhiệm chính.
-- Các thành viên không tự ý thay đổi module của người khác.
-- Những thay đổi liên quan đến dữ liệu hoặc cấu trúc dùng chung phải được thống nhất trước.
-- Mọi thay đổi đưa vào nhánh `main` phải thông qua Pull Request.
-- Mỗi nhiệm vụ cần có Task ID, người phụ trách và điều kiện hoàn thành.
+### Câu hỏi thực nghiệm và điểm nhấn
 
----
+- Ba phương pháp phát hiện được bao nhiêu tunnel và tạo ra bao nhiêu cảnh báo sai trên cùng tập flow đánh giá?
+- Hiệu quả khác nhau thế nào giữa dns2tcp, dnscat2 và iodine; benign Chrome/Firefox có mức false positive ra sao?
+- Mức phát hiện đạt được có tương xứng với thời gian inference và kích thước model không?
 
-## 4. Cấu trúc thư mục dự án
-
-```text
-DoH-tunneling-detection/
-│
-├── .github/                     # GitHub Actions, Issue/PR templates
-│
-├── configs/                     # Cấu hình dataset và các mô hình
-│
-├── data/                        # Dữ liệu đầu vào và dữ liệu xử lý
-│   ├── raw/                     # Dataset gốc (không commit)
-│   ├── interim/                 # Dữ liệu trung gian
-│   └── processed/               # Dữ liệu đã tiền xử lý
-│
-├── splits/                      # Train/Validation/Test manifests
-│
-├── src/
-│   ├── data/                    # [A] Data processing pipeline
-│   ├── xgboost/                 # [B] XGBoost model
-│   ├── isolation_forest/        # [C] Isolation Forest model
-│   ├── cnn1d/                   # [D] 1D-CNN model
-│   └── evaluation/              # [B] Model evaluation
-│
-├── dashboard/                   # [C] Streamlit application
-│
-├── models/                      # Trained models/checkpoints
-│
-├── outputs/                     # Predictions and experiment outputs
-│   ├── xgboost/
-│   ├── isolation_forest/
-│   └── cnn1d/
-│
-├── experiments/                 # Experiment configurations and logs
-│
-├── notebooks/                   # Exploratory data analysis
-│
-├── reports/                     # Evaluation reports and visualizations
-│
-├── scripts/                     # Utility and setup scripts
-│
-├── tests/                       # Unit and integration tests
-│
-├── docs/
-│   ├── contracts.md             # Data & Model Output Contracts
-│   ├── branch_guide.md          # Branch usage guide
-│   └── git_workflow.md          # Team Git workflow
-│
-├── .gitignore
-├── README.md
-├── TEAM.md
-├── TODO.md
-└── requirements.txt
-```
-
-### Quy định quản lý thư mục
-
-**Thành viên A — Data Pipeline**
-
-Chịu trách nhiệm dữ liệu gốc, xử lý PCAP, chuẩn hóa nhãn, trích xuất đặc trưng và tạo các tập dữ liệu dùng chung.
-
-**Thành viên B — XGBoost & Evaluation**
-
-Chịu trách nhiệm huấn luyện XGBoost và phát triển các hàm đánh giá chung cho ba mô hình.
-
-**Thành viên C — Isolation Forest & Dashboard**
-
-Chịu trách nhiệm triển khai Isolation Forest, lựa chọn ngưỡng cảnh báo và xây dựng giao diện demo.
-
-**Thành viên D — 1D-CNN**
-
-Chịu trách nhiệm xây dựng chuỗi packet-level và triển khai mô hình 1D-CNN.
+Điểm nhấn là **phát hiện từ hành vi của traffic mã hóa**, **so sánh ba cách tiếp cận trên cùng test IDs** và **đánh giá đồng thời Recall, FPR và chi phí tính toán**. XGBoost/IF dùng thống kê toàn flow, CNN dùng prefix 32 packet: kết quả so sánh cả phương pháp lẫn biểu diễn đầu vào, chưa tách riêng ảnh hưởng kiến trúc.
 
 ---
 
-## 5. Hướng dẫn bắt đầu
+## Bắt đầu từ đâu?
 
-### 5.1. Clone repository
+1. Đọc [Hướng dẫn sử dụng dữ liệu huấn luyện](docs/TRAINING_GUIDE.md): nhận và giải nén `common.tar.gz`, chọn đúng dữ liệu, nạp đầu vào và xuất prediction.
+2. Mở [Công việc triển khai](TODO.md) để xem phần code của mình.
+3. Làm việc trên nhánh tương ứng theo [hướng dẫn branch](docs/branch_guide.md).
+
+Pipeline dữ liệu đã có và common đã sẵn sàng để train. Các module mô hình, evaluator và dashboard hiện là khung cần triển khai. B/C/D có thể bắt đầu song song ngay sau khi nhận dữ liệu.
+
+## Thiết lập môi trường
+
+Python 3.10+ và Git; khuyến nghị Linux/Ubuntu.
 
 ```bash
 git clone https://github.com/doandangkhoa/DoH-tunneling-detection.git
-
 cd DoH-tunneling-detection
-```
-
-Kiểm tra trạng thái Git:
-
-```bash
-git status
-
-git branch -a
-```
-
-> [!NOTE]
-> Repository đã được khởi tạo trên GitHub. Không cần chạy lại `git init` sau khi clone.
-
-### 5.2. Thiết lập môi trường Python
-
-Yêu cầu đề xuất:
-
-- Python 3.10 trở lên, tùy khả năng tương thích của thư viện.
-- Git.
-- Môi trường Linux/Ubuntu được khuyến nghị.
-
-Tạo môi trường ảo:
-
-```bash
 python3 -m venv .venv
-```
-
-Kích hoạt:
-
-```bash
 source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-Cài đặt dependencies:
+A gửi gói `common.tar.gz` qua kho chia sẻ của nhóm.
 
 ```bash
-python -m pip install --upgrade pip
-
-pip install -r requirements.txt
+tar -xzf common.tar.gz
 ```
 
-> [!NOTE]
-> `requirements.txt` hiện chứa các thư viện dự kiến phục vụ quá trình phát triển. Việc cài đặt dependencies không có nghĩa toàn bộ pipeline đã sẵn sàng chạy.
+Dùng cùng gói dữ liệu cho cả ba mô hình. Không cần chạy lại xử lý PCAP. Mỗi thành viên triển khai CLI trong module phụ trách và bổ sung lệnh chạy vào tài liệu khi dùng được.
 
-### 5.3. Đọc tài liệu dự án
+## Phân công và đầu vào
 
-Trước khi bắt đầu lập trình, mỗi thành viên cần đọc:
+| Thành viên | Phần triển khai | Dữ liệu dùng khi so sánh chung | Nhánh |
+|---|---|---|---|
+| A | Dữ liệu, đóng gói và tích hợp | `src/data/`, `scripts/`, `splits/` | `feature/data-pipeline` |
+| B | XGBoost và evaluator chung | `data/processed/xgboost/common/` | `feature/xgboost` |
+| C | Isolation Forest và dashboard | `data/processed/isolation_forest/common/` | `feature/isolation-forest` |
+| D | Sequence loader và 1D-CNN | `data/processed/cnn1d/` | `feature/cnn1d` |
 
-| Document | Description |
-|---|---|
-| [TODO.md](TODO.md) | Danh sách nhiệm vụ, tiến độ và điều kiện nghiệm thu |
-| [Data & Output Contracts](docs/contracts.md) | Cấu trúc dữ liệu đầu vào và đầu ra |
-| [Branch Guide](docs/branch_guide.md) | Hướng dẫn sử dụng nhánh |
-| [Git Workflow](docs/git_workflow.md) | Quy trình Git, Pull Request và Code Review |
+Common có 168.597 flow train, 8.092 val và 13.411 test. IF train chỉ gồm 5.383 benign trong common train; val/test giống hai mô hình còn lại. Chi tiết shape, array keys, mask và code nạp dữ liệu nằm trong [training guide](docs/TRAINING_GUIDE.md#2-mỗi-thành-viên-dùng-bộ-nào).
 
----
+## Luồng triển khai
 
-## 6. Git Workflow
-
-### 6.1. Branch Structure
-
-Mỗi thành viên làm việc trên branch tương ứng:
-
-| Owner | Branch |
-|---|---|
-| A | `feature/data-pipeline` |
-| B | `feature/xgboost` |
-| C | `feature/isolation-forest` |
-| D | `feature/cnn1d` |
-| Production/Integration | `main` |
-
-Nhánh `main` được sử dụng để lưu phiên bản đã được kiểm tra và tích hợp.
-
-### 6.2. Chuyển sang branch làm việc
-
-Ví dụ với thành viên B:
-
-```bash
-git fetch origin
-
-git switch --track origin/feature/xgboost
+```mermaid
+flowchart LR
+    A["A: Dữ liệu common"] --> B["B: XGBoost"]
+    A --> C["C: Isolation Forest"]
+    A --> D["D: 1D-CNN"]
+    B --> P["Prediction cùng test IDs"]
+    C --> P
+    D --> P
+    P --> Q["A + B: Kiểm tra ID và nhãn"]
+    Q --> E["B: Evaluator chung"]
+    E --> U["C: Dashboard và demo"]
 ```
 
-Nếu branch đã tồn tại ở local:
+Train dùng để học mô hình; validation để chọn cấu hình và threshold. Chỉ chạy đánh giá test cuối sau khi khóa mô hình/ngưỡng. Không tự chia lại dữ liệu hoặc fit preprocessing trên val/test.
 
-```bash
-git switch feature/xgboost
-```
+Mỗi mô hình xuất `outputs/<model>/predictions.parquet` gồm `sample_id`, `model`, `y_true`, `y_score`, `y_pred`, `threshold`, `split`. Score càng cao càng nghi malicious; IF score không nhất thiết là xác suất. Ba file phải khớp toàn bộ ID và nhãn test. Xem [chuẩn prediction và đánh giá](docs/TRAINING_GUIDE.md#4-xuất-kết-quả-để-so-sánh-chung).
 
-### 6.3. Commit Convention
+## Các bước tiếp theo và sản phẩm cuối
 
-Sử dụng cấu trúc:
+Vòng triển khai đầu dùng **một cấu hình baseline, một seed cho mỗi mô hình**, CNN cố định 32 packet. Cả nhóm dùng common 190.100 flow, seed 42; chưa cần train thêm bộ full. Xem [phạm vi huấn luyện đã thống nhất](docs/TRAINING_GUIDE.md#phạm-vi-huấn-luyện-đã-thống-nhất). Mục tiêu là có luồng chạy hoàn chỉnh với kết quả thực và giải thích được; chưa cần tìm kiếm tham số lớn.
+
+| Bước | Phụ trách | Việc làm | Sản phẩm |
+|---|---|---|---|
+| 1. Train baseline | B/C/D | Nạp common, train theo YAML, chọn threshold bằng validation | Model/checkpoint, config, validation score, threshold đã khóa |
+| 2. Predict test | B/C/D; A kiểm tra | Sau khi khóa model/ngưỡng, xuất prediction trên cùng test set | Ba file `predictions.parquet`, đủ 13.411 ID và nhãn đúng |
+| 3. Đánh giá | B | Chạy một evaluator cho cả ba mô hình | Bảng Precision/Recall/F1/AP/FPR, confusion matrix và PR curve |
+| 4. Phân tích ngắn | B/C/D | Recall/support theo công cụ, FPR theo browser; xem vài FP/FN thực tế | Bảng phân nhóm và nhận xét dựa trên kết quả |
+| 5. Đo chi phí | B/C/D | Cùng máy và test set; ghi batch size, warm-up và phạm vi đo | Thời gian train/inference, kích thước model |
+| 6. Demo | C; A tích hợp | Dashboard một trang đọc sẵn prediction và metric | So sánh ba mô hình, biểu đồ và ví dụ dự đoán sai |
+| 7. Chạy lại | A + cả nhóm | Thử từ môi trường sạch và bổ sung lệnh CLI thực tế | Hướng dẫn tái hiện kết quả và demo hoạt động |
+
+AP dùng `average_precision_score`; FPR = FP / (FP + TN), Recall = TP / (TP + FN). Báo cáo support cùng chỉ số theo nguồn. Accuracy có thể bổ sung, không dùng riêng để kết luận. Thời gian inference offline không chứng minh hệ thống chạy thời gian thực.
+
+**Ba kiểm tra bắt buộc:** preprocessing chỉ fit từ train, threshold chọn từ validation và prediction khớp test IDs/nhãn. D bổ sung kiểm thử mask/padding trước khi chốt CNN.
+
+**Để sau vòng baseline:** grid search lớn, nhiều seed, CNN 16/64 packet, SHAP/ablation, công cụ chưa xuất hiện trong train và demo nhận PCAP mới. Chi tiết việc từng người nằm ở [TODO](TODO.md); tiến độ trao đổi trong họp nhóm.
+
+## Cấu trúc project
 
 ```text
-<type>(<scope>): <description>
+DoH-tunneling-detection/
+├── README.md                    # Điểm bắt đầu và tổng quan project
+├── TODO.md                      # Công việc triển khai theo A/B/C/D
+├── requirements.txt             # Thư viện Python
+├── .github/workflows/           # CI kiểm tra cấu trúc và cú pháp
+├── configs/                     # Cấu hình dữ liệu và baseline mô hình
+│   ├── data.yaml                # Nguồn, split và các profile hiện tại
+│   ├── packet_extraction.json   # Phạm vi đọc capture cho pipeline packet
+│   ├── xgboost.yaml             # Đầu vào, tham số, threshold và output của B
+│   ├── isolation_forest.yaml    # Benign-only train, anomaly score và output của C
+│   └── cnn1d.yaml               # Sequence, mask, kiến trúc và train loop của D
+├── docs/                        # Hướng dẫn dùng chung và thao tác Git
+│   ├── TRAINING_GUIDE.md         # Cách đọc dữ liệu và chuẩn prediction
+│   ├── branch_guide.md          # Các lệnh làm việc trên branch
+│   └── git_workflow.md          # Quy trình đưa code vào main
+├── data/                        # Dữ liệu lớn, không commit Git
+│   ├── raw/                     # CSV gốc và ZIP PCAP; đầu vào của A
+│   ├── interim/                 # Master, features, packet mapping và QA của A
+│   │   ├── common/              # Bảng/manifests trung gian của subset chung
+│   │   ├── qa/                  # Thống kê và kiểm tra dữ liệu
+│   │   ├── packet_cache/        # Cache xử lý capture
+│   │   └── versions/            # Snapshot trước khi mở rộng dữ liệu
+│   ├── processed/               # Đầu vào đã xử lý để train
+│   │   ├── xgboost/common/      # B: bảng 29 đặc trưng theo common split
+│   │   ├── isolation_forest/common/ # C: bảng scale, train chỉ benign
+│   │   └── cnn1d/               # D: sequence, mask, ID và nhãn
+│   └── exports/                 # Gói common.tar.gz gửi cho nhóm
+├── splits/                      # Manifest train/val/test của bộ tabular đầy đủ
+├── src/                         # Mã triển khai chính
+│   ├── data/                    # A: chuẩn bị flow/packet, split và preprocessing
+│   ├── xgboost/                 # B: loader, train và predict XGBoost
+│   ├── isolation_forest/        # C: loader, train và predict IF
+│   ├── cnn1d/                   # D: sequence loader, model, train và predict CNN
+│   └── evaluation/              # B: metric, evaluator và biểu đồ chung
+├── scripts/                     # Kiểm tra repo, audit/validate và đóng gói dữ liệu
+├── tests/                       # Unit/integration tests; hiện có tests parser PCAP
+├── dashboard/                   # C: ứng dụng Streamlit so sánh kết quả
+├── models/                      # Model đã fit và checkpoint để nạp lại
+├── outputs/                     # Prediction theo từng mô hình
+│   ├── xgboost/
+│   ├── isolation_forest/
+│   └── cnn1d/
+├── experiments/                 # Cấu hình, seed, log và thời gian từng lần chạy
+├── reports/                     # Bảng metric và biểu đồ kết quả thực nghiệm
+│   ├── tables/
+│   └── figures/
+└── notebooks/                   # Khám phá dữ liệu/thử nghiệm; code dùng chung đặt ở src/
 ```
 
-Ví dụ:
+`data/processed/xgboost/` và `data/processed/isolation_forest/` trên máy A còn chứa bộ full ngoài thư mục `common/`.
 
-```bash
-git commit -m "feat(data): implement TLS flow extraction"
+## Dùng cấu hình
 
-git commit -m "feat(xgboost): implement baseline training"
-
-git commit -m "feat(isolation-forest): add anomaly scoring"
-
-git commit -m "feat(cnn1d): implement packet sequence dataset"
-
-git commit -m "fix(evaluation): correct FPR calculation"
-
-git commit -m "docs(readme): update setup instructions"
-```
-
-Các loại commit khuyến nghị:
-
-| Type | Purpose |
-|---|---|
-| `feat` | Thêm tính năng |
-| `fix` | Sửa lỗi |
-| `docs` | Cập nhật tài liệu |
-| `refactor` | Tái cấu trúc mã nguồn |
-| `test` | Thêm hoặc sửa kiểm thử |
-| `chore` | Bảo trì, cấu hình |
-
-### 6.5. Pull Request Rules
-
-Mỗi Pull Request cần:
-
-- Liên kết với Task ID hoặc GitHub Issue.
-- Mô tả thay đổi đã thực hiện.
-- Liệt kê các file hoặc module bị ảnh hưởng.
-- Có hướng dẫn kiểm thử hoặc bằng chứng kiểm thử.
-- Được ít nhất một thành viên khác review trước khi merge.
-
-Không push trực tiếp vào `main` trong quy trình làm việc thông thường.
-
----
-
-## 7. Data Pipeline & Contracts
-
-### 7.1. Data Processing Workflow
-
-```text
-Raw Dataset (PCAP / CSV)
-           │
-           ▼
-     Dataset Audit
-           │
-           ▼
-    TLS Flow Filtering
-           │
-           ▼
-    Flow/Packet Mapping
-           │
-           ▼
-     Label Validation
-           │
-           ▼
-      Master Dataset
-           │
-           ▼
-    Train / Val / Test
-           │
-     ┌─────┴─────┐
-     │           │
-     ▼           ▼
-Flow Features  Packet Sequences
-     │           │
-  ┌──┴──┐        │
-  ▼     ▼        ▼
- XGB    IF     1D-CNN
-  │     │        │
-  └─────┴────────┘
-        │
-        ▼
-   Model Evaluation
-        │
-        ▼
-   Comparison Report
-        │
-        ▼
- Streamlit Dashboard
-```
-
-### 7.2. Data Contract
-
-Các mô hình phải sử dụng dữ liệu được tạo từ cùng một master dataset.
-
-| Artifact | Owner | Description |
+| File | Người dùng | Vai trò |
 |---|---|---|
-| `data/interim/master_dataset.parquet` | A | Flow ID, sample ID, label và metadata |
-| `data/interim/flow_features.parquet` | A | Flow-level features |
-| `data/interim/packet_metadata.parquet` | A | Packet-level features |
-| `splits/train_ids.csv` | A | Training sample IDs |
-| `splits/val_ids.csv` | A | Validation sample IDs |
-| `splits/test_ids.csv` | A | Testing sample IDs |
+| [data.yaml](configs/data.yaml) | A và cả nhóm | Mô tả nguồn, profile và split hiện tại; seed đã chọn là 1798, không phải seed train 42 |
+| [packet_extraction.json](configs/packet_extraction.json) | A | `prepare_packets.py` đọc trực tiếp: đọc toàn bộ capture browser và tunnel có sẵn, không giới hạn dns2tcp |
+| [xgboost.yaml](configs/xgboost.yaml) | B | Common `X`, feature order, tham số XGBoost và đường dẫn output |
+| [isolation_forest.yaml](configs/isolation_forest.yaml) | C | Common `X` đã scale benign-only, score đảo chiều và đường dẫn output |
+| [cnn1d.yaml](configs/cnn1d.yaml) | D | Common sequence 32 packet, 3 kênh, mask và baseline Conv1d |
 
-**Yêu cầu bắt buộc:**
+Các YAML mô hình là cấu hình baseline để B/C/D nối vào CLI đang triển khai; hiện chưa có trainer đọc chúng. `data.yaml` mô tả pipeline hiện tại, chưa điều khiển `prepare_dataset.py`. Mọi đường dẫn tính từ root repository. Truyền riêng phần `model` vào estimator XGBoost/IF; loader, lựa chọn threshold và ghi output do CLI xử lý.
 
-- `sample_id` phải duy nhất ở mức flow.
-- Nhãn nhị phân thống nhất: `0 = Benign`, `1 = Malicious`.
-- Không có mẫu trùng giữa train, validation và test.
-- Không tự chia lại dữ liệu trong từng module mô hình.
-- Phải xác minh ánh xạ PCAP ↔ flow ↔ label.
-- Các bước preprocessing có học tham số chỉ được fit trên tập train.
+Cả ba cấu hình dùng validation AP để chọn mô hình và tối đa F1 trên validation để chọn threshold baseline. `threshold.value: null` nghĩa là chưa chọn ngưỡng; phải lưu giá trị đã chọn trước khi predict test. Đây là cấu hình khởi đầu, chưa được tuning. Tham số imputer/scaler thực tế nằm trong `preprocessing.json` cạnh dữ liệu; không fit lại hay scale thêm. Quy tắc mask và ví dụ nạp dữ liệu xem [training guide](docs/TRAINING_GUIDE.md).
 
-Chi tiết xem tại [docs/contracts.md](docs/contracts.md).
+Chỉ commit code, cấu hình và tài liệu. Dữ liệu, môi trường Python và model lớn được Git ignore. Quy trình đưa code vào `main` xem [Git workflow](docs/git_workflow.md).
 
-### 7.3. Model Output Contract
+## Kiểm tra
 
-Mỗi mô hình phải xuất kết quả dự đoán theo cùng định dạng:
-
-```text
-outputs/<model_name>/predictions.parquet
+```bash
+python scripts/verify_repository.py
+python -m pytest -q
 ```
 
-Schema:
-
-| Field | Type | Description |
-|---|---|---|
-| `sample_id` | String | Flow identifier |
-| `model` | String | Model name |
-| `y_true` | Integer | Ground truth label |
-| `y_score` | Float | Model prediction/anomaly score |
-| `y_pred` | Integer | Predicted label |
-
-Quy ước `y_score` càng cao thì mẫu càng có khả năng thuộc lớp malicious.
-
-**Lưu ý:** `y_score` của Isolation Forest không nhất thiết là xác suất.
-
-Ba mô hình phải sử dụng **cùng tập `sample_id` trong test set** khi thực hiện phép so sánh trực tiếp.
-
----
-
-## 8. Model Evaluation
-
-Các mô hình được đánh giá bằng những chỉ số thống nhất.
-
-| Metric | Description |
-|---|---|
-| Accuracy | Tỷ lệ dự đoán chính xác |
-| Precision | Tỷ lệ cảnh báo đúng |
-| Recall | Tỷ lệ phát hiện lưu lượng độc hại |
-| F1-score | Trung bình điều hòa Precision và Recall |
-| PR-AUC | Diện tích dưới đường Precision–Recall |
-| FPR | Tỷ lệ cảnh báo sai trên lưu lượng bình thường |
-| Training Time | Thời gian huấn luyện |
-| Inference Latency | Thời gian suy luận |
-| Model Size | Kích thước mô hình |
-
-Đối với bài toán phát hiện xâm nhập, các chỉ số **Recall, Precision, F1-score, PR-AUC và FPR** được ưu tiên.
-
-Không sử dụng kết quả trên test set để lựa chọn hyperparameters, features hoặc threshold.
+Kiểm tra cấu trúc không chứng minh mô hình đã hoạt động. Các kiểm tra dữ liệu đầy đủ dành cho A nằm ở [cuối training guide](docs/TRAINING_GUIDE.md#6-dành-cho-a-tái-tạo-và-đóng-gói).

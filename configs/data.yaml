@@ -1,14 +1,35 @@
-# D1-D4 — A phải điền theo dataset thực, không mặc định sẵn schema.
+# Mô tả dữ liệu hiện tại; prepare_dataset.py chưa đọc YAML này.
+# Không thay YAML để tự chia lại dữ liệu; dùng các manifests đã bàn giao.
 dataset:
-  name: CIRA-CIC-DoHBrw-2020  # dataset dự kiến; chưa xác nhận tệp và nhãn
+  name: CIRA-CIC-DoHBrw-2020
   raw_dir: data/raw
+  csv_dir: data/raw/csv
+  pcap_dir: data/raw/pcap
   master_file: data/interim/master_dataset.parquet
   flow_features_file: data/interim/flow_features.parquet
   packet_metadata_file: data/interim/packet_metadata.parquet
-  label_mapping: null  # TODO: xác minh nhãn CSV thực tế
+  label_mapping:
+    benign: 0
+    malicious: 1
+  scope: benign_doh_vs_tunnel_doh
+  exclude_baseline_files: true
 split:
-  strategy: group_by_capture  # TODO: xác minh nhóm đủ hai lớp
+  strategy: collection_day_resolver_union_capture_and_connection_session
   train_ratio: 0.70
   val_ratio: 0.15
   test_ratio: 0.15
-  random_seed: 42
+  # Tỷ lệ phía trên là mục tiêu; chia theo nhóm nên không khớp chính xác.
+  selected_seed: 1798
+  seed_search_start: 42
+  seed_search_end_inclusive: 2041
+  seed_selection: size_and_label_balance_only
+  manifest: splits/split_manifest.json
+  common_manifests: data/interim/common
+  preserve_existing_splits: true
+profiles:
+  tabular_full: data/processed/xgboost
+  isolation_forest_full: data/processed/isolation_forest
+  cnn_subset: data/processed/cnn1d
+  xgboost_comparison: data/processed/xgboost/common
+  isolation_forest_comparison: data/processed/isolation_forest/common
+  comparison_intermediate: data/interim/common

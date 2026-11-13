@@ -9,7 +9,7 @@ git pull --ff-only origin feature/xgboost
 # sửa code; kiểm tra thay đổi
 git status
 git add src/xgboost
-git commit -m "feat(XGB-01): implement baseline preprocessing"
+git commit -m "feat(xgboost): implement baseline preprocessing"
 git push origin feature/xgboost
 ```
 
@@ -26,8 +26,6 @@ git merge origin/main
 # nếu có conflict thì giải quyết cẩn thận, test rồi push
 ```
 
-Tránh `git push --force` lên nhánh chung. Nếu phải thay đổi các file chung như `docs/contracts.md`, `requirements.txt` hoặc tên cột, báo trước cho các thành viên liên quan.
+Tránh `git push --force` lên nhánh chung. Nếu phải thay đổi các file chung như `docs/TRAINING_GUIDE.md`, `requirements.txt` hoặc tên cột, báo trước cho các thành viên liên quan.
 
-## Quy tắc đóng task
-
-Chỉ tick `[x]` trong `TODO.md` khi PR đã merge, output hợp lệ và có bằng chứng nghiệm thu. Link issue/PR ngay dưới Task ID.
+Phần code cần triển khai xem [TODO](../TODO.md); dữ liệu và chuẩn prediction xem [training guide](TRAINING_GUIDE.md).

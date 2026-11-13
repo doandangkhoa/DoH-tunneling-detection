@@ -1,7 +1,32 @@
-# B — TODO: xác minh tham số bằng validation.
-random_seed: 42
-n_estimators: 200
-max_depth: 5
-learning_rate: 0.05
-subsample: 0.8
-colsample_bytree: 0.8
+# B: đặc tả baseline cho CLI train/predict cần triển khai.
+# Đường dẫn tính từ root repository; không truyền toàn bộ YAML vào estimator.
+data:
+  directory: data/processed/xgboost/common
+  input_key: X
+  label_key: y
+  id_key: sample_id
+  feature_names_key: feature_names
+  preprocessing_file: data/processed/xgboost/common/preprocessing.json
+  refit_preprocessing: false
+model:
+  random_state: 42
+  objective: binary:logistic
+  eval_metric: logloss
+  n_estimators: 200
+  max_depth: 5
+  learning_rate: 0.05
+  subsample: 0.8
+  colsample_bytree: 0.8
+  # Baseline chưa weighting; thử tỷ lệ benign/malicious bằng validation nếu cần.
+  scale_pos_weight: 1.0
+selection:
+  split: val
+  metric: average_precision
+threshold:
+  split: val
+  method: maximize_f1
+  value: null  # Điền giá trị đã chọn khi lưu cấu hình thí nghiệm; khóa trước test.
+output:
+  model_directory: models/xgboost
+  predictions_file: outputs/xgboost/predictions.parquet
+  experiment_directory: experiments/xgboost

@@ -1,4 +1,4 @@
-"""TODO: IF-03/IF-04 · D6-D7 — Train anomaly model and validate threshold.
+"""Chưa triển khai: Train anomaly model and validate threshold.
 
-Khung file chưa triển khai. Xem TODO.md và docs/contracts.md.
+Khung file chưa triển khai. Xem TODO.md và docs/TRAINING_GUIDE.md.
 """

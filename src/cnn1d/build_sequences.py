@@ -1,4 +1,4 @@
-"""TODO: CNN-01/CNN-03 · D1-D4 — Ordered packet sequences.
+"""Chưa triển khai: Ordered packet sequences.
 
-Khung file chưa triển khai. Xem TODO.md và docs/contracts.md.
+Khung file chưa triển khai. Xem TODO.md và docs/TRAINING_GUIDE.md.
 """
