@@ -205,4 +205,4 @@ python scripts/verify_repository.py
 python -m pytest -q
 ```
 
-Kiểm tra cấu trúc không chứng minh mô hình đã hoạt động. Các kiểm tra dữ liệu đầy đủ dành cho A nằm ở [cuối training guide](docs/TRAINING_GUIDE.md#6-dành-cho-a-tái-tạo-và-đóng-gói).
+Kiểm tra cấu trúc không chứng minh mô hình đã hoạt động. Các kiểm tra dữ liệu đầy đủ dành cho A nằm ở [cuối training guide](docs/TRAINING_GUIDE.md#6-dành-cho-a-tái-tạo-và-đóng-gói)..
