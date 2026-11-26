@@ -1,0 +1,40 @@
+train (168597, 3, 32) | val (8092, 3, 32) | device cpu
+epoch   1 | train_loss 0.0335 | val_loss 0.0516 | val_AP 0.9992 *
+epoch   2 | train_loss 0.0061 | val_loss 0.0299 | val_AP 0.9996 *
+epoch   3 | train_loss 0.0037 | val_loss 0.0221 | val_AP 0.9997 *
+epoch   4 | train_loss 0.0025 | val_loss 0.0187 | val_AP 0.9998 *
+epoch   5 | train_loss 0.0020 | val_loss 0.0180 | val_AP 0.9998
+epoch   6 | train_loss 0.0016 | val_loss 0.0168 | val_AP 0.9999 *
+epoch   7 | train_loss 0.0013 | val_loss 0.0170 | val_AP 0.9999 *
+epoch   8 | train_loss 0.0012 | val_loss 0.0157 | val_AP 1.0000 *
+epoch   9 | train_loss 0.0010 | val_loss 0.0147 | val_AP 0.9999
+epoch  10 | train_loss 0.0008 | val_loss 0.0140 | val_AP 1.0000
+epoch  11 | train_loss 0.0009 | val_loss 0.0143 | val_AP 1.0000 *
+epoch  12 | train_loss 0.0006 | val_loss 0.0147 | val_AP 1.0000 *
+epoch  13 | train_loss 0.0007 | val_loss 0.0133 | val_AP 1.0000 *
+epoch  14 | train_loss 0.0006 | val_loss 0.0132 | val_AP 1.0000 *
+epoch  15 | train_loss 0.0006 | val_loss 0.0112 | val_AP 1.0000 *
+epoch  16 | train_loss 0.0005 | val_loss 0.0112 | val_AP 1.0000
+epoch  17 | train_loss 0.0006 | val_loss 0.0126 | val_AP 1.0000
+epoch  18 | train_loss 0.0004 | val_loss 0.0113 | val_AP 1.0000
+epoch  19 | train_loss 0.0004 | val_loss 0.0136 | val_AP 1.0000
+epoch  20 | train_loss 0.0004 | val_loss 0.0103 | val_AP 1.0000 *
+epoch  21 | train_loss 0.0006 | val_loss 0.0110 | val_AP 1.0000 *
+epoch  22 | train_loss 0.0003 | val_loss 0.0064 | val_AP 1.0000 *
+epoch  23 | train_loss 0.0003 | val_loss 0.0085 | val_AP 1.0000
+epoch  24 | train_loss 0.0004 | val_loss 0.0115 | val_AP 1.0000
+epoch  25 | train_loss 0.0004 | val_loss 0.0096 | val_AP 1.0000
+epoch  26 | train_loss 0.0002 | val_loss 0.0088 | val_AP 1.0000
+epoch  27 | train_loss 0.0002 | val_loss 0.0088 | val_AP 1.0000
+epoch  28 | train_loss 0.0003 | val_loss 0.0079 | val_AP 1.0000
+epoch  29 | train_loss 0.0002 | val_loss 0.0081 | val_AP 1.0000
+epoch  30 | train_loss 0.0002 | val_loss 0.0161 | val_AP 1.0000
+Traceback (most recent call last):
+  File "C:\Users\buiha\OneDrive\Desktop\2026.1\ANMthuchanh\DoH-tunneling-detection\DoH-tunneling-detection\src\cnn1d\train.py", line 165, in <module>
+    main()
+  File "C:\Users\buiha\OneDrive\Desktop\2026.1\ANMthuchanh\DoH-tunneling-detection\DoH-tunneling-detection\src\cnn1d\train.py", line 159, in main
+    print(f"Ch\u1ecdn epoch {best['epoch']} (val AP {best['ap']:.4f}); threshold {threshold:.6f} "
+  File "C:\Users\buiha\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1258.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u1ecd' in position 2: character maps to <undefined>

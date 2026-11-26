@@ -1,0 +1,39 @@
+{
+  "model": "cnn1d",
+  "data_profile": "common_grouped",
+  "seed": 42,
+  "n_train": 176689,
+  "epochs_trained_per_fit": 30,
+  "threshold_method": "minimize_worst_browser_fpr",
+  "threshold": 0.9983964562416077,
+  "recall_target": 0.99,
+  "oof_recall": 0.9907459189620359,
+  "oof_chrome_fpr": 0.13437057991513435,
+  "oof_firefox_fpr": 0.0006545573555882811,
+  "oof_average_precision": 0.9997705847259684,
+  "train_time_seconds": 399.76505273899966,
+  "model_size_bytes": 29105,
+  "mask_check_passed": true,
+  "git_commit": "472f05ca5d13b2fb736e2d8e703e2a4b25b29490",
+  "hardware": "x86_64",
+  "device": "cpu",
+  "python_version": "3.13.12",
+  "library_versions": {
+    "torch": "2.15.0+cpu",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "scikit-learn": "1.9.0"
+  },
+  "n_test": 13411,
+  "inference_time_seconds": 0.06455949133669492,
+  "inference_ms_per_flow": 0.004813920761814549,
+  "inference_runs_seconds": [
+    0.0629017980027129,
+    0.06840268600353738,
+    0.06237399000383448
+  ],
+  "batch_size": 64,
+  "warmup_runs": 1,
+  "timed_runs": 3,
+  "includes_preprocessing": false
+}

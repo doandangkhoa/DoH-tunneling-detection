@@ -2,7 +2,7 @@
 
 Điều hướng: [README](../README.md) · [Công việc triển khai](../TODO.md).
 
-Tài liệu chung cho A/B/C/D. **B/C/D huấn luyện mô hình của mình và xuất các file ở mục 4.1–4.2; A nhận kết quả, tính metric, so sánh, vẽ biểu đồ và làm dashboard.** Dữ liệu đã xử lý sẵn; các thành viên không cần đọc PCAP hoặc chạy lại pipeline để bắt đầu. Mã train/model hiện vẫn cần được triển khai.
+Tài liệu chung cho A/B/C/D. Dữ liệu đã xử lý sẵn; các thành viên không cần đọc PCAP hoặc chạy lại pipeline để bắt đầu. Mã train/model hiện vẫn cần được triển khai.
 
 ## Đọc nhanh: chỉ cần mở phần của mình
 
@@ -45,7 +45,7 @@ Common bao phủ khoảng **72,74%** bộ bảng đầy đủ 261.355 flow. Đâ
 | 2 | Train baseline từ YAML, seed 42; IF chỉ fit benign train | Model/checkpoint và config; CNN chọn checkpoint bằng validation |
 | 3 | Dùng validation để chọn threshold tối đa F1; nếu cần sửa cấu hình thì chỉ dựa vào validation | Validation score, threshold cố định và log thí nghiệm |
 | 4 | Khóa model/checkpoint và threshold rồi predict test | Prediction đủ 13.411 test IDs theo mục 4 |
-| 5 | B/C/D gửi model và kết quả đã lưu; A kiểm tra, chạy evaluator và làm dashboard | Bảng metric, PR curve, confusion matrix và demo từ kết quả thực |
+| 5 | B dùng evaluator chung; C làm dashboard; A kiểm tra tích hợp | Bảng metric, PR curve, confusion matrix và demo từ kết quả thực |
 
 Một lần train CNN gồm nhiều epoch theo cấu hình, không phải một epoch. Lưu checkpoint đã chọn để predict lại; không cần train lại chỉ để mở dashboard hoặc tính lại metric từ prediction.
 
@@ -178,26 +178,19 @@ trong `models/isolation_forest/`.
 
 ### D — Nạp dữ liệu CNN
 
-```python
-from pathlib import Path
-import numpy as np
-import torch
+CNN1D mặc định dùng manifest chung `splits/common_folds.parquet` và mảng
+`X_raw` trong `development.npz` và `test.npz`. Nếu có bộ common cũ, chạy
+`python scripts/prepare_cnn1d_development.py` một lần để gộp train và val.
+Sau đó chạy từ thư mục gốc:
 
-folder = Path("data/processed/cnn1d")
-with np.load(folder / "train.npz", allow_pickle=False) as data:
-    X_train = data["X"]
-    y_train = data["y"]
-    mask = data["mask"]
-    train_ids = data["sample_id"]
-
-print(X_train.shape, mask.shape)  # (168597, 32, 3) (168597, 32)
-inputs = torch.from_numpy(X_train.transpose(0, 2, 1).copy()).float()
-valid_mask = torch.from_numpy(mask).bool()
-targets = torch.from_numpy(y_train).float()  # BCEWithLogitsLoss cần nhãn float 0/1.
-# inputs: (N, 3, 32), valid_mask: (N, 32), targets: (N,)
-# Khi train: loss = criterion(logits.reshape(-1), targets)
-# Thiết kế model để dùng valid_mask trong forward và pooling.
+```bash
+python -m src.cnn1d.train
+python -m src.cnn1d.predict
 ```
+
+Mỗi lượt fit chuẩn hóa từ packet thật của hai fold train và chạy 30 epoch.
+Điểm ngoài fold được dùng để chọn ngưỡng với Recall tunnel tối thiểu 99%.
+Mô hình cuối học trên cả ba fold. Predict dùng chuẩn hóa và ngưỡng đã lưu.
 
 | Kênh | `X_raw` | `X` đưa vào CNN |
 |---|---|---|
@@ -205,9 +198,9 @@ targets = torch.from_numpy(y_train).float()  # BCEWithLogitsLoss cần nhãn flo
 | 1 — direction | +1 hoặc -1 | Giữ +1/-1 |
 | 2 — IAT | Khoảng cách thời gian giữa packet, giây; packet đầu bằng 0 | log1p rồi chuẩn hóa từ packet thật của train |
 
-Mỗi flow có 4–32 packet thật. `mask=True` là packet thật; `False` là padding. Padding trong `X` bằng 0. Direction theo SYN initiator nếu quan sát được SYN đầu sequence, nếu thiếu thì theo endpoint đầu quan sát được. `X_raw` dành cho phân tích, không phải đầu vào đã chuẩn hóa.
+Mỗi flow có 4–32 packet thật. `mask=True` là packet thật; `False` là padding. Padding trong `X` bằng 0. Direction theo SYN initiator nếu quan sát được SYN đầu sequence, nếu thiếu thì theo endpoint đầu quan sát được. `X_raw` là dữ liệu trước chuẩn hóa dùng cho baseline 3 fold.
 
-Không chuẩn hóa lại `X`. Conv1d không tự sử dụng mask: D cần kiểm thử ở chế độ eval rằng thay giá trị padding nhưng giữ packet thật và mask thì prediction không đổi trong tolerance đã chọn. Muốn thử prefix 16 packet, chọn bằng validation; 64 packet cần A trích xuất thêm, không tự bịa packet.
+Train kiểm tra ở chế độ eval rằng thay giá trị padding trong khi giữ packet thật và mask cho cùng điểm dự đoán trong sai số cho phép.
 
 ## 4. Xuất kết quả để so sánh chung
 
@@ -248,78 +241,9 @@ output.mkdir(parents=True, exist_ok=True)
 result.to_parquet(output / "predictions.parquet", index=False)
 ```
 
-A kiểm tra ba file có đúng 13.411 ID test, không trùng/thiếu và nhãn khớp nhau. Lưu kèm model/checkpoint, config, seed, feature order, preprocessing, log train/validation, phiên bản thư viện và thời gian train/inference.
+B kiểm tra ba file có đúng 13.411 ID test, không trùng/thiếu và nhãn khớp nhau. Lưu kèm model/checkpoint, config, seed, feature order, preprocessing, log train/validation, phiên bản thư viện và thời gian train/inference.
 
-A tổng hợp Precision, Recall, F1, **AP** (`average_precision_score`), FPR và TP/FN/FP/TN. Join `test_metadata.parquet` bằng `sample_id` để báo cáo Recall/support riêng dns2tcp, dnscat2, iodine và macro Recall theo công cụ; FPR kèm FP/TN theo Chrome/Firefox. Nguồn không có mẫu ghi N/A. Mỗi mô hình dùng một threshold đã khóa, không chỉnh theo nhãn test hay từng công cụ test.
-
-### 4.1. Mỗi người cần lưu gì và để ở đâu?
-
-Các đường dẫn dưới đây tính từ root project. Dùng đúng tên model: **`xgboost`**, **`isolation_forest`**, **`cnn1d`**. Đây là quy ước đầu ra cần triển khai; hiện chưa có các kết quả huấn luyện này. Mỗi thư mục giữ bộ kết quả baseline đã chọn để A có thể đọc theo đường dẫn cố định.
-
-| Người | File cần bàn giao | Nội dung |
-|---|---|---|
-| **B** | `models/xgboost/model.json` | Model XGBoost đã chọn, lưu bằng định dạng native JSON |
-| **C** | `models/isolation_forest/model.joblib` | Model IF đã fit trên benign common train |
-| **D** | `models/cnn1d/best.pt` | State dict CNN của checkpoint được chọn bằng validation; kiến trúc nằm trong config đi kèm |
-| **B/C/D** | `models/<model>/preprocessing.json` | Bản sao nguyên file preprocessing cạnh dữ liệu của chính mô hình đó |
-| **B/C/D** | `models/<model>/feature_names.json` | Danh sách `feature_names` theo đúng thứ tự trong NPZ; CNN lưu thứ tự 3 kênh |
-| **B/C/D** | `experiments/<model>/config.yaml` | Cấu hình thực tế đã dùng, seed train 42, đường dẫn dữ liệu, checkpoint và `threshold.value` đã chọn; giữ file YAML gốc trong `configs/` làm baseline |
-| **B/C/D** | `experiments/<model>/run_summary.json` | Số mẫu, ngưỡng, thời gian, kích thước model và môi trường chạy theo mục 4.2 |
-| **B/C/D** | `outputs/<model>/validation_predictions.parquet` | Prediction trên 8.092 validation flow, cùng schema mục 4 nhưng `split=val`; dùng chọn ngưỡng |
-| **B/C/D** | `outputs/<model>/predictions.parquet` | Prediction trên 13.411 test flow, `split=test`, sau khi khóa model/ngưỡng |
-| **D** | `experiments/cnn1d/history.csv` | Mỗi epoch một dòng: `epoch`, `train_loss`, `val_loss`, `val_average_precision`; đánh dấu epoch được chọn trong run summary |
-| **D** | `experiments/cnn1d/mask_check.json` | Kết quả kiểm tra padding: `passed`, `n_samples`, `atol`, `rtol`, `max_abs_score_difference`; chạy ở eval, dùng mẫu train/val |
-
-Validation predictions được ghi bản cuối với threshold đã chọn trên validation, trước khi đánh giá test; không thay threshold bằng kết quả test. IF vẫn dự đoán toàn bộ val/test dù train chỉ benign. Nếu lưu nhiều lần thử, đặt chúng vào thư mục riêng và chỉ bàn giao bộ đã chọn tại các đường dẫn trên.
-
-**Riêng theo mô hình:** B giữ feature order của 29 cột; C ghi quy tắc `y_score = -score_samples(X)` và không dùng nhãn `-1/+1` từ IF làm prediction cuối; D ghi kiến trúc, epoch chọn, layout `(N,3,32)` và cách xử lý mask để có thể nạp lại checkpoint.
-
-### 4.2. Nội dung thống nhất của `run_summary.json`
-
-| Nhóm thông tin | Các trường cần lưu | Quy ước |
-|---|---|---|
-| Nhận diện | `model`, `data_profile`, `data_directory`, `seed`, `git_commit` | `data_profile=common`, seed train 42; `git_commit` là mã code đã dùng nếu có |
-| Quy mô | `n_train`, `n_val`, `n_test` | XGB/CNN: 168597/8092/13411; IF: 5383/8092/13411 |
-| Chọn mô hình/ngưỡng | `selection_metric`, `validation_average_precision`, `threshold_method`, `threshold`, `selected_epoch` | AP chọn checkpoint/cấu hình; ngưỡng tối đa F1 trên val; `selected_epoch=null` cho XGB/IF |
-| Chiều score | `score_method` | XGB: xác suất lớp 1; IF: negative score_samples; CNN: sigmoid của logits |
-| Thời gian | `train_time_seconds`, `inference_time_seconds`, `inference_ms_per_flow` | Dùng giây và mili giây, không ghi chuỗi như `2 phút` |
-| Cách đo | `hardware`, `device`, `batch_size`, `warmup_runs`, `timed_runs`, `includes_preprocessing` | Ghi rõ CPU/GPU và phạm vi đo; tabular có thể đặt batch_size bằng số dòng test nếu predict toàn bộ một lần |
-| Kích thước | `model_size_bytes` | Kích thước file model/checkpoint chính, không cộng dataset, prediction hoặc biểu đồ |
-| Môi trường | `python_version`, `library_versions` | Tên và phiên bản các thư viện đã dùng để nạp/train/predict |
-
-`train_time_seconds` tính từ lúc bắt đầu fit/train đến lúc hoàn thành vòng baseline, gồm validation trong train loop nếu có; không gồm đọc file, cài thư viện hoặc xuất biểu đồ. `inference_time_seconds` là thời gian trung bình mỗi lượt predict toàn bộ test sau warm-up; lưu số lượt đo thực tế. Tính `inference_ms_per_flow = inference_time_seconds * 1000 / n_test`. Với GPU, đồng bộ trước và sau khoảng đo để không chỉ đo thời gian gửi lệnh.
-
-B/C/D ghi lại thời gian thực tế trên máy mình trong run summary. Khi tổng hợp chi phí, A chạy lại inference từ các model đã lưu trên **cùng một máy**, ghi đúng batch size và cùng phạm vi đo; không cần train lại. Không dùng việc đo thời gian này để chọn mô hình/ngưỡng theo test. Chỉ ghi số đo thực tế; dữ liệu chưa có dùng `null`, không tự điền số minh họa thành kết quả.
-
-### 4.3. Cách B/C/D gửi kết quả cho A
-
-Mỗi người gửi đúng ba thư mục, thay `<model>` bằng tên mô hình của mình:
-
-```text
-models/<model>/       # model/checkpoint, preprocessing.json, feature_names.json
-outputs/<model>/      # validation_predictions.parquet, predictions.parquet
-experiments/<model>/  # config.yaml, run_summary.json; D thêm history.csv, mask_check.json
-```
-
-B gửi bộ `xgboost`, C gửi bộ `isolation_forest`, D gửi bộ `cnn1d`. Giữ nguyên đường dẫn khi nén/gửi qua Drive để A giải nén tại root project. Code train/predict được push lên nhánh của mỗi người; model và prediction đang bị Git ignore nên cần gửi riêng. Ghi lệnh nạp model/predict trong phần mô tả bàn giao hoặc README của PR để A chạy lại khi cần.
-
-B/C/D chỉ cần hoàn thành đầu ra mục 4.1–4.2. Các bảng so sánh, metric test, confusion matrix, PR curve, phân tích FP/FN và dashboard do **A** thực hiện từ prediction và metadata đã có. Không cần ba người tự làm ba evaluator hoặc bộ biểu đồ riêng.
-
-### 4.4. A nhận kết quả và tổng hợp
-
-A kiểm tra ba prediction có đúng cùng 13.411 test IDs, y_true khớp dữ liệu, không trùng/thiếu, score hữu hạn và y_pred đúng threshold; model/checkpoint có thể nạp lại. Sau đó A dùng **một evaluator chung** trong `src/evaluation/`, join metadata bằng `sample_id` để tính Precision, Recall, F1, AP, FPR, TP/FN/FP/TN; Recall/support theo công cụ và FPR theo browser.
-
-| A tạo và lưu | Nội dung |
-|---|---|
-| `reports/tables/metrics.csv` | Một dòng mỗi model: threshold, số mẫu, Precision/Recall/F1/AP/FPR, TP/FN/FP/TN và macro Recall theo công cụ |
-| `reports/tables/source_metrics.csv` | Kết quả theo công cụ/browser, kèm support và số capture/nhóm |
-| `reports/tables/runtime.csv` | Tổng hợp run summary; số đo inference so sánh được chạy trên cùng máy |
-| `reports/tables/errors.parquet` | FP/FN của ba mô hình, kèm source/capture/group để phân tích |
-| `reports/tables/pr_curve.csv` | Các điểm precision/recall/threshold để vẽ PR curve |
-| `reports/figures/pr_comparison.png` | PR curve so sánh ba mô hình |
-| `reports/figures/confusion_matrix_<model>.png` | Confusion matrix từng mô hình, hàng y_true, cột y_pred, nhãn `[0,1]` |
-
-Metric lưu theo thang 0–1; chỉ đổi sang phần trăm khi hiển thị. Giá trị không áp dụng/không xác định ghi N/A. A triển khai `dashboard/app.py` đọc các bảng và prediction đã lưu, chạy tích hợp và cập nhật lệnh thực tế vào README. Việc tổng hợp, vẽ biểu đồ và mở dashboard không cần train lại model.
+Báo cáo Precision, Recall, F1, **AP** (`average_precision_score`), FPR và TP/FN/FP/TN. Join `test_metadata.parquet` bằng `sample_id` để báo cáo Recall/support riêng dns2tcp, dnscat2, iodine và macro Recall theo công cụ; FPR kèm FP/TN theo Chrome/Firefox. Nguồn không có mẫu ghi N/A. Mỗi mô hình dùng một threshold đã khóa, không chỉnh theo nhãn test hay từng công cụ test.
 
 ## 5. Hiểu đúng dữ liệu và giới hạn
 

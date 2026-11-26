@@ -1,0 +1,1 @@
+Đã ghi C:\Users\buiha\OneDrive\Desktop\2026.1\ANMthuchanh\DoH-tunneling-detection\DoH-tunneling-detection\outputs\cnn1d\predictions.parquet (13411 flow, threshold=0.606864); inference 1.244s = 0.0928 ms/flow
