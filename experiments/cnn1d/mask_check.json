@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "n_samples": 2000,
+  "n_samples_with_padding": 1025,
+  "atol": 1e-06,
+  "rtol": 1e-05,
+  "max_abs_score_difference": 0.0,
+  "mode": "eval",
+  "perturbation": "padding replaced by N(0, 100^2) noise",
+  "splits": [
+    "train",
+    "val"
+  ]
+}

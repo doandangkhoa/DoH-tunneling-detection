@@ -1,0 +1,55 @@
+{
+  "model": "cnn1d",
+  "data_profile": "common",
+  "data_directory": "data/processed/cnn1d",
+  "seed": 42,
+  "n_train": 168597,
+  "n_val": 8092,
+  "n_test": 13411,
+  "selection_metric": "average_precision",
+  "validation_average_precision": 0.9999908424404723,
+  "threshold_method": "maximize_f1",
+  "threshold": 0.6068644523620605,
+  "validation_f1": 0.9984216459977452,
+  "selected_epoch": 22,
+  "epochs_trained": 30,
+  "score_method": "sigmoid_logits",
+  "architecture": {
+    "input_channels": 3,
+    "conv_channels": [
+      32,
+      64
+    ],
+    "kernel_size": 3,
+    "padding": "same",
+    "pooling": "masked_mean",
+    "dropout": 0.2,
+    "output_logits": 1,
+    "input_layout": "N,C,L",
+    "mask_handling": "input*mask before each conv, zero padding after each conv+ReLU, masked mean pooling"
+  },
+  "train_time_seconds": 1008.6167552999686,
+  "inference_time_seconds": 1.2442350333440118,
+  "inference_ms_per_flow": 0.09277720030900095,
+  "model_size_bytes": 29105,
+  "mask_check_passed": true,
+  "git_commit": "09d76da3b965ae3056e4b546513c3d806257da35",
+  "hardware": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+  "device": "cpu",
+  "python_version": "3.11.9",
+  "library_versions": {
+    "torch": "2.15.0+cpu",
+    "numpy": "2.4.6",
+    "pandas": "3.0.6",
+    "scikit-learn": "1.9.1"
+  },
+  "inference_runs_seconds": [
+    0.7113928000326268,
+    1.8524021999910474,
+    1.168910100008361
+  ],
+  "batch_size": 64,
+  "warmup_runs": 1,
+  "timed_runs": 3,
+  "includes_preprocessing": false
+}

@@ -47,6 +47,12 @@ Code: `src/cnn1d/`. Cấu hình: [cnn1d.yaml](configs/cnn1d.yaml). Đầu vào: 
 - Xuất checkpoint và thông tin theo [mục 4.1–4.2](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu), thêm `history.csv` và `mask_check.json` để A phân tích/vẽ biểu đồ.
 - Gửi A ba thư mục `models/cnn1d/`, `outputs/cnn1d/`, `experiments/cnn1d/` và lệnh nạp model/predict.
 
+```bash
+python src/cnn1d/train.py --config configs/cnn1d.yaml               # train + val: checkpoint, threshold, mask check
+python src/cnn1d/predict.py --config experiments/cnn1d/config.yaml  # test: dùng threshold đã khóa
+python -m pytest -q tests/test_cnn1d.py                              # kiểm thử mask/padding và luồng train→predict
+```
+
 ## Quy tắc chung
 
 - B/C/D train song song và bàn giao đúng tên file/thư mục. A tổng hợp sau khi nhận đủ kết quả.
