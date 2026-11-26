@@ -17,9 +17,19 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
+from sklearn.metrics import (
+    accuracy_score,
+    average_precision_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from src.cnn1d.build_sequences import ROOT, load_split, resolve, to_tensors  # noqa: E402
+from src.cnn1d.build_sequences import ROOT, load_split, log_sequences, normalized_inputs, resolve, to_tensors  # noqa: E402
 from src.cnn1d.model import build_model  # noqa: E402
 
 MODEL_NAME = "cnn1d"
@@ -103,8 +113,13 @@ def main(argv=None):
     checkpoint = resolve(cfg["output"]["checkpoint_file"])
     model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True))
 
-    test = load_split(cfg["data"], "test")
-    X, mask, _ = to_tensors(test)
+    if cfg["threshold"]["method"] == "minimize_worst_browser_fpr":
+        test = log_sequences(cfg["data"], "test")
+        preprocessing = json.loads((checkpoint.parent / "preprocessing.json").read_text(encoding="utf-8"))
+        X, mask = normalized_inputs(test["X"], test["mask"], preprocessing["mean"], preprocessing["std"])
+    else:
+        test = load_split(cfg["data"], "test")
+        X, mask, _ = to_tensors(test)
     batch_size = cfg["training"]["batch_size"]
 
     # Warm-up rồi đo nhiều lượt predict toàn bộ test
@@ -142,6 +157,30 @@ def main(argv=None):
     write_json(summary_file, summary)
     print(f"Đã ghi {out_file} ({len(frame)} flow, threshold={threshold:.6f}); "
           f"inference {inference:.3f}s = {summary['inference_ms_per_flow']:.4f} ms/flow")
+
+    y_true, y_pred = frame["y_true"], frame["y_pred"]
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+    fpr = f"{fp / (fp + tn):.6f}" if fp + tn else "N/A"
+    print("\nCNN1D - TEST EVALUATION")
+    print("Confusion matrix (rows: actual, columns: predicted)")
+    print("                 Benign  Tunnel")
+    print(f"Actual benign    {tn:6d}  {fp:6d}")
+    print(f"Actual tunnel    {fn:6d}  {tp:6d}")
+    print(f"Accuracy:  {accuracy_score(y_true, y_pred):.6f}")
+    print(f"Precision: {precision_score(y_true, y_pred, zero_division=0):.6f}")
+    print(f"Recall:    {recall_score(y_true, y_pred, zero_division=0):.6f}")
+    print(f"F1-score:  {f1_score(y_true, y_pred, zero_division=0):.6f}")
+    print(f"FPR:       {fpr}")
+    if y_true.nunique() == 2:
+        print(f"ROC-AUC:   {roc_auc_score(y_true, scores):.6f}")
+        print(f"AP:        {average_precision_score(y_true, scores):.6f}")
+    else:
+        print("ROC-AUC and AP: N/A (requires both classes)")
+    print()
+    print(classification_report(
+        y_true, y_pred, labels=[0, 1], target_names=["Benign", "Tunnel"],
+        digits=6, zero_division=0,
+    ))
 
 
 if __name__ == "__main__":

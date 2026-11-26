@@ -49,3 +49,19 @@ def load_split(data_cfg: dict, split: str) -> dict:
 def to_tensors(d: dict):
     """numpy -> tensor: X float32 (N,C,L), mask bool (N,L), y float (cho BCEWithLogits)."""
     return torch.from_numpy(d["X"]), torch.from_numpy(d["mask"]), torch.from_numpy(d["y"]).float()
+
+
+def log_sequences(data_cfg: dict, split: str) -> dict:
+    """Load raw packet sequences and log-transform length and interarrival time."""
+    data = load_split({**data_cfg, "input_key": "X_raw"}, split)
+    values = data["X"].transpose(0, 2, 1).copy(order="C")
+    for channel in (0, 2):
+        values[:, :, channel] = np.log1p(values[:, :, channel])
+    data["X"] = values
+    return data
+
+
+def normalized_inputs(values, mask, center, scale):
+    normalized = (values - np.asarray(center, dtype=np.float32)) / np.asarray(scale, dtype=np.float32)
+    normalized[~mask] = 0
+    return torch.from_numpy(np.ascontiguousarray(normalized.transpose(0, 2, 1))), torch.from_numpy(mask)

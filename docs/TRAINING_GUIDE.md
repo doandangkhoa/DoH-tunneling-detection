@@ -183,26 +183,19 @@ val_scores = -model.score_samples(X_val)  # Điểm cao = nghi malicious hơn
 
 ### D — Nạp dữ liệu CNN
 
-```python
-from pathlib import Path
-import numpy as np
-import torch
+CNN1D mặc định dùng manifest chung `splits/common_folds.parquet` và mảng
+`X_raw` trong `development.npz` và `test.npz`. Nếu có bộ common cũ, chạy
+`python scripts/prepare_cnn1d_development.py` một lần để gộp train và val.
+Sau đó chạy từ thư mục gốc:
 
-folder = Path("data/processed/cnn1d")
-with np.load(folder / "train.npz", allow_pickle=False) as data:
-    X_train = data["X"]
-    y_train = data["y"]
-    mask = data["mask"]
-    train_ids = data["sample_id"]
-
-print(X_train.shape, mask.shape)  # (168597, 32, 3) (168597, 32)
-inputs = torch.from_numpy(X_train.transpose(0, 2, 1).copy()).float()
-valid_mask = torch.from_numpy(mask).bool()
-targets = torch.from_numpy(y_train).float()  # BCEWithLogitsLoss cần nhãn float 0/1.
-# inputs: (N, 3, 32), valid_mask: (N, 32), targets: (N,)
-# Khi train: loss = criterion(logits.reshape(-1), targets)
-# Thiết kế model để dùng valid_mask trong forward và pooling.
+```bash
+python -m src.cnn1d.train
+python -m src.cnn1d.predict
 ```
+
+Mỗi lượt fit chuẩn hóa từ packet thật của hai fold train và chạy 30 epoch.
+Điểm ngoài fold được dùng để chọn ngưỡng với Recall tunnel tối thiểu 99%.
+Mô hình cuối học trên cả ba fold. Predict dùng chuẩn hóa và ngưỡng đã lưu.
 
 | Kênh | `X_raw` | `X` đưa vào CNN |
 |---|---|---|
@@ -210,9 +203,9 @@ targets = torch.from_numpy(y_train).float()  # BCEWithLogitsLoss cần nhãn flo
 | 1 — direction | +1 hoặc -1 | Giữ +1/-1 |
 | 2 — IAT | Khoảng cách thời gian giữa packet, giây; packet đầu bằng 0 | log1p rồi chuẩn hóa từ packet thật của train |
 
-Mỗi flow có 4–32 packet thật. `mask=True` là packet thật; `False` là padding. Padding trong `X` bằng 0. Direction theo SYN initiator nếu quan sát được SYN đầu sequence, nếu thiếu thì theo endpoint đầu quan sát được. `X_raw` dành cho phân tích, không phải đầu vào đã chuẩn hóa.
+Mỗi flow có 4–32 packet thật. `mask=True` là packet thật; `False` là padding. Padding trong `X` bằng 0. Direction theo SYN initiator nếu quan sát được SYN đầu sequence, nếu thiếu thì theo endpoint đầu quan sát được. `X_raw` là dữ liệu trước chuẩn hóa dùng cho baseline 3 fold.
 
-Không chuẩn hóa lại `X`. Conv1d không tự sử dụng mask: D cần kiểm thử ở chế độ eval rằng thay giá trị padding nhưng giữ packet thật và mask thì prediction không đổi trong tolerance đã chọn. Muốn thử prefix 16 packet, chọn bằng validation; 64 packet cần A trích xuất thêm, không tự bịa packet.
+Train kiểm tra ở chế độ eval rằng thay giá trị padding trong khi giữ packet thật và mask cho cùng điểm dự đoán trong sai số cho phép.
 
 ## 4. Xuất kết quả để so sánh chung
 

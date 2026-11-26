@@ -30,7 +30,11 @@ def fake_split(n, rng, prefix):
     X[:, :, 1] = np.sign(X[:, :, 1])
     X[~mask] = 0
     ids = np.array([f"{prefix}-{i}" for i in range(n)])
-    return dict(X=X, X_raw=X, mask=mask, y=y, sample_id=ids, feature_names=np.array(CHANNELS))
+    raw = X.copy()
+    raw[:, :, 0] = np.exp(X[:, :, 0])
+    raw[:, :, 2] = np.exp(X[:, :, 2])
+    raw[~mask] = 0
+    return dict(X=X, X_raw=raw, mask=mask, y=y, sample_id=ids, feature_names=np.array(CHANNELS))
 
 
 def test_padding_does_not_change_scores():
@@ -56,17 +60,42 @@ def test_mask_check_detects_unmasked_model():
     assert not check_mask_invariance(Unmasked(), X, torch.from_numpy(d["mask"]))["passed"]
 
 
-def test_train_then_predict_end_to_end(tmp_path):
+@pytest.mark.parametrize("grouped", [False, True])
+def test_train_then_predict_end_to_end(tmp_path, grouped):
     rng = np.random.default_rng(1)
     data = tmp_path / "data"
     data.mkdir()
+    manifest = []
+    development = []
     for split, n in [("train", 300), ("val", 120), ("test", 150)]:
-        np.savez_compressed(data / f"{split}.npz", **fake_split(n, rng, split))
+        arrays = fake_split(n, rng, split)
+        np.savez_compressed(data / f"{split}.npz", **arrays)
+        if split != "test":
+            development.append(arrays)
+            fold = np.arange(n) % 3
+            source = np.where(arrays["y"] == 1, "iodine", np.where(fold == 0, "Chrome", "Firefox"))
+            manifest.append(pd.DataFrame({
+                "sample_id": arrays["sample_id"], "label": arrays["y"], "source": source,
+                "fold": fold, "split_group": [f"group-{i}" for i in fold],
+            }))
     (data / "preprocessing.json").write_text("{}")
 
     cfg = yaml.safe_load((ROOT / "configs/cnn1d.yaml").read_text(encoding="utf-8"))
     cfg["data"]["directory"] = str(data)
-    cfg["data"]["preprocessing_file"] = str(data / "preprocessing.json")
+    if grouped:
+        merged = {
+            key: np.concatenate([split[key] for split in development])
+            for key in ("X", "X_raw", "mask", "y", "sample_id")
+        }
+        np.savez_compressed(data / "development.npz", **merged, feature_names=CHANNELS)
+        (data / "train.npz").unlink()
+        (data / "val.npz").unlink()
+        path = data / "folds.parquet"
+        pd.concat(manifest).to_parquet(path, index=False)
+        cfg["data"]["fold_manifest"] = str(path)
+    else:
+        cfg["data"].update(preprocessing_file=str(data / "preprocessing.json"), refit_preprocessing=False)
+        cfg["threshold"].update(method="maximize_f1", split="val")
     cfg["training"].update(epochs=3, device="cpu")
     cfg["output"] = {"model_directory": str(tmp_path / "models"),
                      "predictions_file": str(tmp_path / "outputs/predictions.parquet"),
@@ -79,10 +108,11 @@ def test_train_then_predict_end_to_end(tmp_path):
     assert yaml.safe_load(used.read_text(encoding="utf-8"))["threshold"]["value"] is not None
     predict.main(["--config", str(used)])
 
+    validation_output = "exp/out_of_fold.parquet" if grouped else "outputs/validation_predictions.parquet"
     for name in ["models/best.pt", "models/preprocessing.json", "models/feature_names.json",
-                 "exp/history.csv", "exp/mask_check.json", "outputs/validation_predictions.parquet"]:
+                 "exp/history.csv", "exp/mask_check.json", validation_output]:
         assert (tmp_path / name).is_file(), name
-    assert len(pd.read_csv(tmp_path / "exp/history.csv")) == 3
+    assert len(pd.read_csv(tmp_path / "exp/history.csv")) == (12 if grouped else 3)
     assert json.loads((tmp_path / "exp/mask_check.json").read_text())["passed"]
 
     pred = pd.read_parquet(tmp_path / "outputs/predictions.parquet")
@@ -93,7 +123,14 @@ def test_train_then_predict_end_to_end(tmp_path):
     assert pred.threshold.nunique() == 1 and pred.model.eq("cnn1d").all()
 
     summary = json.loads((tmp_path / "exp/run_summary.json").read_text(encoding="utf-8"))
-    for key in ["validation_average_precision", "threshold", "selected_epoch", "train_time_seconds",
+    for key in ["threshold", "train_time_seconds",
                 "inference_time_seconds", "inference_ms_per_flow", "model_size_bytes"]:
         assert summary[key] is not None, key
-    assert (summary["n_train"], summary["n_val"], summary["n_test"]) == (300, 120, 150)
+    assert summary["n_test"] == 150
+    if grouped:
+        assert summary["n_train"] == 420
+        assert summary["oof_recall"] >= cfg["threshold"]["minimum_recall"]
+    else:
+        assert (summary["n_train"], summary["n_val"]) == (300, 120)
+        assert summary["validation_average_precision"] is not None
+        assert summary["selected_epoch"] is not None

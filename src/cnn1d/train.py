@@ -1,4 +1,4 @@
-"""D — Train 1D-CNN; chọn checkpoint theo validation AP, threshold tối đa F1 trên val.
+"""D — Train 1D-CNN; mặc định chọn ngưỡng từ dự đoán ngoài fold.
 
 Chạy tại root repository:
     python src/cnn1d/train.py --config configs/cnn1d.yaml
@@ -52,6 +52,11 @@ def main(argv=None):
     parser.add_argument("--config", default="configs/cnn1d.yaml")
     args = parser.parse_args(argv)
     cfg = yaml.safe_load(resolve(args.config).read_text(encoding="utf-8"))
+    if cfg["threshold"]["method"] == "minimize_worst_browser_fpr":
+        from src.cnn1d.grouped import train_grouped
+
+        train_grouped(cfg, set_seed)
+        return
     assert not cfg["data"]["refit_preprocessing"], "Không fit lại preprocessing"
 
     seed = cfg["random_seed"]
