@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 import numpy as np
+import pandas as pd
 
 
 def load_split(data_dir: str | Path, split: str, data_cfg: dict[str, Any]) -> dict[str, Any]:
@@ -33,3 +34,22 @@ def validate_training_data(y_train: np.ndarray, train_cfg: dict[str, Any]) -> No
                 f"Isolation Forest yêu cầu tập train chỉ chứa nhãn {benign_label}, "
                 f"nhưng phát hiện nhãn khác: {np.unique(y_train)}"
             )
+
+def fit_preprocessing(benign: pd.DataFrame) -> dict:
+    median = benign.median().fillna(0)
+    filled = benign.fillna(median)
+    scale = (filled.quantile(0.75) - filled.quantile(0.25)).replace(0, 1)
+    return {
+        "features": benign.columns.tolist(),
+        "median": median.to_dict(),
+        "center": filled.median().to_dict(),
+        "scale": scale.to_dict(),
+    }
+
+
+def transform(features: pd.DataFrame, preprocessing: dict) -> np.ndarray:
+    columns = preprocessing["features"]
+    filled = features.loc[:, columns].fillna(preprocessing["median"])
+    center = pd.Series(preprocessing["center"]).reindex(columns)
+    scale = pd.Series(preprocessing["scale"]).reindex(columns)
+    return ((filled - center) / scale).to_numpy(dtype=np.float32)

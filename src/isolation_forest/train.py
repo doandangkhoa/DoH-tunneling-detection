@@ -19,7 +19,7 @@ from sklearn.metrics import (
     recall_score,
 )
 
-from src.isolation_forest.preprocess import load_split, validate_training_data
+from src.isolation_forest.preprocess import fit_preprocessing, load_split, transform, validate_training_data
 
 
 def compute_anomaly_score(model: IsolationForest, X: np.ndarray, method: str) -> np.ndarray:
@@ -39,6 +39,104 @@ def find_best_f1_threshold(y_true: np.ndarray, y_score: np.ndarray) -> tuple[flo
     return float(thresholds[best_idx]), float(f1s[best_idx])
 
 
+def train_grouped(cfg: dict[str, Any]) -> None:
+    data_cfg = cfg["data"]
+    development = load_split(data_cfg["directory"], "development", data_cfg)
+    ids = pd.Index(development["sample_id"], name="sample_id")
+    features = pd.DataFrame(development["X"], index=ids, columns=development["feature_names"])
+    manifest = pd.read_parquet(data_cfg["fold_manifest"]).set_index("sample_id")
+    if not ids.is_unique or not manifest.index.is_unique or set(ids) != set(manifest.index):
+        raise ValueError("Fold manifest must cover each development sample exactly once")
+    folds = manifest.loc[ids].copy()
+    if not np.array_equal(folds.label, development["y"]):
+        raise ValueError("Fold manifest labels do not match development labels")
+    if folds[["split_group", "source", "fold"]].isna().any().any():
+        raise ValueError("Fold manifest contains missing values")
+    if set(folds.fold) != {0, 1, 2} or folds.groupby("split_group").fold.nunique().ne(1).any():
+        raise ValueError("Each collection group must belong to one of the three folds")
+    test = load_split(data_cfg["directory"], "test", data_cfg)
+    if not ids.intersection(test["sample_id"]).empty:
+        raise ValueError("Development and test share sample IDs")
+
+    benign = folds.label.eq(0)
+    method = cfg["score"]["method"]
+
+    def fit(mask):
+        training = features.loc[mask]
+        preprocessing = fit_preprocessing(training)
+        model = IsolationForest(**cfg["model"]).fit(transform(training, preprocessing))
+        return model, preprocessing
+
+    started = time.perf_counter()
+    folds["score"] = np.nan
+    for fold in range(3):
+        held = folds.fold.eq(fold)
+        if set(folds.loc[held, "label"]) != {0, 1}:
+            raise ValueError(f"Fold {fold} must contain both labels")
+        model, preprocessing = fit(benign & ~held)
+        scores = compute_anomaly_score(model, transform(features.loc[held], preprocessing), method)
+        folds.loc[held, "score"] = scores
+    if not np.isfinite(folds.score).all():
+        raise ValueError("Non-finite out-of-fold scores")
+
+    thresholds = np.unique(folds.score)
+
+    def positive_rate(mask):
+        scores = np.sort(folds.loc[mask, "score"])
+        if not scores.size:
+            raise ValueError("Threshold selection requires both browsers and tunnel samples")
+        return 1 - np.searchsorted(scores, thresholds) / scores.size
+
+    recall = positive_rate(~benign)
+    chrome_fpr = positive_rate(benign & folds.source.eq("Chrome"))
+    firefox_fpr = positive_rate(benign & folds.source.eq("Firefox"))
+    target = float(cfg["threshold"]["minimum_recall"])
+    eligible = np.flatnonzero(recall >= target)
+    if not eligible.size or not 0 < target <= 1:
+        raise ValueError("Minimum recall must be in (0, 1]")
+    selected = min(eligible, key=lambda i: (
+        max(chrome_fpr[i], firefox_fpr[i]), (chrome_fpr[i] + firefox_fpr[i]) / 2,
+        -recall[i], -thresholds[i],
+    ))
+    threshold = float(thresholds[selected])
+    model, preprocessing = fit(benign)
+    train_seconds = time.perf_counter() - started
+
+    output = cfg["output"]
+    model_dir = Path(output["model_directory"])
+    exp_dir = Path(output["experiment_directory"])
+    model_dir.mkdir(parents=True, exist_ok=True)
+    exp_dir.mkdir(parents=True, exist_ok=True)
+    model_path = model_dir / "isolation_forest.joblib"
+    joblib.dump(model, model_path)
+    (model_dir / "preprocessing.json").write_text(
+        json.dumps(preprocessing, indent=2) + "\n", encoding="utf-8",
+    )
+    cfg["threshold"]["value"] = threshold
+    (exp_dir / "locked_config.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    folds.to_parquet(exp_dir / "out_of_fold.parquet")
+    summary = {
+        "model": "isolation_forest",
+        "seed": cfg["model"].get("random_state"),
+        "train_samples": int(benign.sum()),
+        "development_samples": len(folds),
+        "test_samples": len(test["y"]),
+        "train_seconds": train_seconds,
+        "model_size_bytes": model_path.stat().st_size,
+        "score_method": method,
+        "threshold_method": cfg["threshold"]["method"],
+        "threshold": threshold,
+        "recall_target": target,
+        "oof_recall": float(recall[selected]),
+        "oof_chrome_fpr": float(chrome_fpr[selected]),
+        "oof_firefox_fpr": float(firefox_fpr[selected]),
+        "oof_average_precision": float(average_precision_score(folds.label, folds.score)),
+    }
+    (exp_dir / "train_summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    print(f"[DONE] Train xong trong {train_seconds:.3f}s | Model: {model_path}")
+    print(f"[OOF] AP={summary['oof_average_precision']:.4f} | Recall={recall[selected]:.4f} | Threshold={threshold:.6f}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train Isolation Forest baseline")
     parser.add_argument("--config", type=str, default="configs/isolation_forest.yaml")
@@ -47,6 +145,10 @@ def main() -> None:
     config_path = Path(args.config)
     with config_path.open("r", encoding="utf-8") as f:
         cfg: dict[str, Any] = yaml.safe_load(f)
+
+    if cfg["threshold"]["method"] == "minimize_worst_browser_fpr":
+        train_grouped(cfg)
+        return
 
     data_cfg = cfg["data"]
     train_data = load_split(data_cfg["directory"], "train", data_cfg)

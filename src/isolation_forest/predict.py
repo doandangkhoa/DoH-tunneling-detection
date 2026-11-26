@@ -8,8 +8,18 @@ import joblib
 import numpy as np
 import pandas as pd
 import yaml
+from sklearn.metrics import (
+    accuracy_score,
+    average_precision_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 
-from src.isolation_forest.preprocess import load_split
+from src.isolation_forest.preprocess import load_split, transform
 from src.isolation_forest.train import compute_anomaly_score
 
 
@@ -35,6 +45,13 @@ def main() -> None:
     X_test = test_data["X"]
     y_test = test_data["y"]
     sample_ids = test_data["sample_id"]
+
+    if cfg["threshold"]["method"] == "minimize_worst_browser_fpr":
+        preprocessing = json.loads((model_path.parent / "preprocessing.json").read_text(encoding="utf-8"))
+        feature_names = test_data["feature_names"]
+        if list(feature_names) != preprocessing["features"]:
+            raise ValueError("Feature order does not match the fitted preprocessing")
+        X_test = transform(pd.DataFrame(X_test, columns=feature_names), preprocessing)
 
     score_method = cfg["score"]["method"]
 
@@ -78,6 +95,28 @@ def main() -> None:
 
     print(f"[DONE] Đã xuất {len(df_out)} dòng ra {out_path}")
     print(f"[TIME] Inference: {inference_seconds:.4f}s ({infer_stats['ms_per_sample']:.4f} ms/flow)")
+
+    tn, fp, fn, tp = confusion_matrix(y_test, y_pred, labels=[0, 1]).ravel()
+    fpr = f"{fp / (fp + tn):.6f}" if fp + tn else "N/A"
+    print(f"\nISOLATION FOREST - {args.split.upper()} EVALUATION")
+    print("Confusion matrix (rows: actual, columns: predicted)")
+    print(f"                 Benign  Tunnel\nActual benign    {tn:6d}  {fp:6d}")
+    print(f"Actual tunnel    {fn:6d}  {tp:6d}")
+    print(f"Accuracy:  {accuracy_score(y_test, y_pred):.6f}")
+    print(f"Precision: {precision_score(y_test, y_pred, zero_division=0):.6f}")
+    print(f"Recall:    {recall_score(y_test, y_pred, zero_division=0):.6f}")
+    print(f"F1-score:  {f1_score(y_test, y_pred, zero_division=0):.6f}")
+    print(f"FPR:       {fpr}")
+    if np.unique(y_test).size == 2:
+        print(f"ROC-AUC:   {roc_auc_score(y_test, y_score):.6f}")
+        print(f"AP:        {average_precision_score(y_test, y_score):.6f}")
+    else:
+        print("ROC-AUC and AP: N/A (requires both classes)")
+    print()
+    print(classification_report(
+        y_test, y_pred, labels=[0, 1], target_names=["Benign", "Tunnel"],
+        digits=6, zero_division=0,
+    ))
 
 
 if __name__ == "__main__":

@@ -14,7 +14,12 @@ def main():
                    'data/processed/isolation_forest/common']:
         base = ROOT / folder
         paths.append(base / 'preprocessing.json')
-        for split in ['train', 'val', 'test']:
+        development = base / 'development.npz'
+        if development.exists():
+            paths.extend([development, ROOT / 'splits/common_folds.parquet'])
+            if folder == 'data/processed/xgboost/common':
+                paths.append(ROOT / 'data/interim/flow_features.parquet')
+        for split in (['test'] if development.exists() else ['train', 'val', 'test']):
             paths.extend([base / f'{split}.npz', base / f'{split}_metadata.parquet'])
             if folder != 'data/processed/cnn1d':
                 paths.extend([base / f'{split}.parquet', base / f'{split}_ids.csv'])

@@ -132,20 +132,45 @@ def validate():
     with np.load(ROOT/'data/interim/common/if_benign_train.npz',allow_pickle=False) as z:
         assert (z['y']==0).all() and np.isfinite(z['X']).all()
         assert set(z['sample_id'])==set(master.loc[common_train_ids].query('label == 0').index)
+    if_common = ROOT/'data/processed/isolation_forest/common'
+    grouped_if = (if_common/'development.npz').exists()
+    if grouped_if:
+        manifest = pd.read_parquet(ROOT/'splits/common_folds.parquet').set_index('sample_id')
+        ids = np.concatenate([
+            pd.read_csv(ROOT/f'data/interim/common/{split}_ids.csv').sample_id.to_numpy()
+            for split in ['train', 'val']
+        ])
+        assert manifest.index.is_unique and set(manifest.index) == set(ids)
+        assert set(manifest.fold) == {0, 1, 2}
+        assert manifest.groupby('split_group').fold.nunique().eq(1).all()
+        for split in ['development', 'test']:
+            with np.load(if_common/f'{split}.npz', allow_pickle=False) as z:
+                sample_ids = z['sample_id']
+                assert np.array_equal(z['feature_names'], cols)
+                assert np.array_equal(z['y'], master.loc[sample_ids, 'label'])
+                assert np.array_equal(z['X_raw'], features.loc[sample_ids, cols], equal_nan=True)
+                if split == 'development':
+                    assert np.array_equal(sample_ids, manifest.index)
+                    assert np.array_equal(manifest.label, z['y'])
+                    assert np.array_equal(manifest.split_group, master.loc[sample_ids, 'split_group'])
+                    assert np.array_equal(manifest.source, master.loc[sample_ids, 'source'])
+                else:
+                    assert set(manifest.split_group).isdisjoint(master.loc[sample_ids, 'split_group'])
     for profile,reference in [('','data/processed/xgboost'),('common','data/interim/common')]:
         target=ROOT/'data/processed/isolation_forest'/profile
         for split in ['train','val','test']:
             with np.load(ROOT/reference/f'{split}.npz',allow_pickle=False) as source:
                 take=source['y']==0 if split=='train' else np.ones(len(source['y']),dtype=bool)
-                with np.load(target/f'{split}.npz',allow_pickle=False) as result:
-                    assert np.array_equal(result['sample_id'],source['sample_id'][take])
-                    assert np.array_equal(result['y'],source['y'][take])
-                    assert np.array_equal(result['X'],source['X_if'][take])
-                    table=pd.read_parquet(target/f'{split}.parquet')
-                    assert np.array_equal(table.sample_id,result['sample_id'])
-                    assert np.array_equal(table[cols].to_numpy(),result['X'])
-                    assert np.array_equal(pd.read_csv(target/f'{split}_ids.csv').sample_id,result['sample_id'])
-                if profile=='common':
+                if profile != 'common' or split == 'test' or not grouped_if:
+                    with np.load(target/f'{split}.npz',allow_pickle=False) as result:
+                        assert np.array_equal(result['sample_id'],source['sample_id'][take])
+                        assert np.array_equal(result['y'],source['y'][take])
+                        assert np.array_equal(result['X'],source['X_if'][take])
+                        table=pd.read_parquet(target/f'{split}.parquet')
+                        assert np.array_equal(table.sample_id,result['sample_id'])
+                        assert np.array_equal(table[cols].to_numpy(),result['X'])
+                        assert np.array_equal(pd.read_csv(target/f'{split}_ids.csv').sample_id,result['sample_id'])
+                if profile=='common' and (split=='test' or not (ROOT/'data/processed/xgboost/common/development.npz').exists()):
                     with np.load(ROOT/f'data/processed/xgboost/common/{split}.npz',allow_pickle=False) as result:
                         assert np.array_equal(result['sample_id'],source['sample_id'])
                         assert np.array_equal(result['X'],source['X']) and np.array_equal(result['y'],source['y'])
@@ -203,11 +228,13 @@ def validate():
                 assert np.array_equal(meta.sample_id,z['sample_id'])
                 assert np.array_equal(meta.label,z['y'])
                 assert np.array_equal(meta.source,master.loc[z['sample_id'],'source'])
-            tab_meta=pd.read_parquet(ROOT/f'data/processed/xgboost/common/{split}_metadata.parquet')
-            assert meta.equals(tab_meta)
-            if_meta=pd.read_parquet(ROOT/f'data/processed/isolation_forest/common/{split}_metadata.parquet')
-            expected=meta.loc[meta.label==0] if split=='train' else meta
-            assert if_meta.reset_index(drop=True).equals(expected.reset_index(drop=True))
+            if split=='test' or not (ROOT/'data/processed/xgboost/common/development.npz').exists():
+                tab_meta=pd.read_parquet(ROOT/f'data/processed/xgboost/common/{split}_metadata.parquet')
+                assert meta.equals(tab_meta)
+            if split=='test' or not grouped_if:
+                if_meta=pd.read_parquet(if_common/f'{split}_metadata.parquet')
+                expected=meta.loc[meta.label==0] if split=='train' else meta
+                assert if_meta.reset_index(drop=True).equals(expected.reset_index(drop=True))
     result={'status':'PASS','master_flows':len(master),'packet_flows':packets.sample_id.nunique(),
             'packet_rows':len(packets),'feature_count':len(cols),
             'checks':['persisted_schema','finite_values','binary_labels','unique_ids','exact_feature_duplicates',
