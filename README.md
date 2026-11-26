@@ -1,5 +1,15 @@
 <div align="center">
 
+# 🛡️ DoH Tunneling Detection
+
+**Phát hiện DNS tunneling trong lưu lượng DNS-over-HTTPS mã hóa**
+
+`XGBoost` · `Isolation Forest` · `1D-CNN` · `CIRA-CIC-DoHBrw-2020`
+
+[🚀 Bắt đầu](#bắt-đầu) · [📂 Cấu trúc project](#cấu-trúc-project) · [📊 Dashboard và báo cáo](#dashboard-và-báo-cáo) · [📖 Hướng dẫn dữ liệu](docs/TRAINING_GUIDE.md) · [🛠️ Công việc](TODO.md)
+
+</div>
+
 ---
 
 ## Giới thiệu đề tài
