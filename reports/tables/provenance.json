@@ -1,0 +1,22 @@
+{
+  "dataset": "CIRA-CIC-DoHBrw-2020",
+  "profile": "common",
+  "split": "test",
+  "test_flows": 13411,
+  "metadata": "data/processed/cnn1d/test_metadata.parquet",
+  "metadata_sha256": "9d34d15da6e7f973c4b4f557f8385d64e96d2321d174c6b3ef9a5c8879cba44f",
+  "predictions": {
+    "xgboost": {
+      "path": "outputs/xgboost/predictions.parquet",
+      "sha256": "e3c045a1d080974d582a35fa31977c9c967dff82c3bd95b5f1e1887b24db37bd"
+    },
+    "isolation_forest": {
+      "path": "outputs/isolation_forest/predictions.parquet",
+      "sha256": "7f30d72ca320d0f8555ca869565b464019a15f164849ff169866e49a317225dd"
+    },
+    "cnn1d": {
+      "path": "outputs/cnn1d/predictions.parquet",
+      "sha256": "5a1478c25fa59c5289156928484f7087b61b0714133702079b4fa76ea915bdf9"
+    }
+  }
+}

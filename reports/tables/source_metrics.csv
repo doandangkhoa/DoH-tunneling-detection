@@ -1,0 +1,16 @@
+model,label,source,support,captures,split_groups,metric,positive_predictions,rate
+xgboost,0,Chrome,2022,9,1,fpr,7,0.0034619188921859545
+xgboost,0,Firefox,4770,3,1,fpr,111,0.023270440251572325
+xgboost,1,dns2tcp,1633,630,1,recall,1633,1.0
+xgboost,1,dnscat2,2348,1200,1,recall,2126,0.9054514480408858
+xgboost,1,iodine,2638,1000,1,recall,2624,0.9946929492039424
+isolation_forest,0,Chrome,2022,9,1,fpr,1400,0.6923837784371909
+isolation_forest,0,Firefox,4770,3,1,fpr,2582,0.5412997903563941
+isolation_forest,1,dns2tcp,1633,630,1,recall,1630,0.998162890385793
+isolation_forest,1,dnscat2,2348,1200,1,recall,2331,0.9927597955706985
+isolation_forest,1,iodine,2638,1000,1,recall,2624,0.9946929492039424
+cnn1d,0,Chrome,2022,9,1,fpr,1,0.0004945598417408506
+cnn1d,0,Firefox,4770,3,1,fpr,501,0.10503144654088051
+cnn1d,1,dns2tcp,1633,630,1,recall,1626,0.9957134109001837
+cnn1d,1,dnscat2,2348,1200,1,recall,2201,0.9373935264054515
+cnn1d,1,iodine,2638,1000,1,recall,2587,0.9806671721000758
