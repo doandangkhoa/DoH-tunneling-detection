@@ -1,15 +1,5 @@
 <div align="center">
 
-# 🛡️ DoH Tunneling Detection
-
-**Phát hiện DNS tunneling trong lưu lượng DNS-over-HTTPS mã hóa**
-
-`XGBoost` · `Isolation Forest` · `1D-CNN` · `CIRA-CIC-DoHBrw-2020`
-
-[🚀 Bắt đầu](#bắt-đầu-từ-đâu) · [📂 Cấu trúc project](#cấu-trúc-project) · [📖 Hướng dẫn dữ liệu](docs/TRAINING_GUIDE.md) · [🛠️ Công việc](TODO.md)
-
-</div>
-
 ---
 
 ## Giới thiệu đề tài
@@ -18,25 +8,25 @@ DNS-over-HTTPS (DoH) truyền các truy vấn DNS qua HTTPS, bảo vệ nội du
 
 Đề tài nghiên cứu khả năng **phân biệt benign DoH và tunnel DoH bằng đặc trưng hành vi mạng, không giải mã payload**. Dữ liệu lấy từ CIRA-CIC-DoHBrw-2020, gồm lưu lượng browser Chrome/Firefox và các công cụ tunnel dns2tcp, dnscat2, iodine theo kịch bản nguồn.
 
-| Nội dung | Phạm vi thực hiện |
-|---|---|
-| Bài toán | Phân loại nhị phân: `0 = benign DoH`, `1 = malicious/tunnel DoH` |
-| Dữ liệu quan sát | Thống kê flow và chuỗi độ dài, hướng truyền, thời gian giữa packet |
-| Phương pháp | Học có giám sát, phát hiện bất thường từ benign và học chuỗi bằng CNN |
-| Sản phẩm | Ba baseline, evaluator chung và dashboard so sánh kết quả |
-| Phạm vi | Phân tích offline trên dataset; chưa triển khai IDS thời gian thực |
+| Nội dung           | Phạm vi thực hiện                                                                |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| Bài toán          | Phân loại nhị phân: `0 = benign DoH`, `1 = malicious/tunnel DoH`            |
+| Dữ liệu quan sát | Thống kê flow và chuỗi độ dài, hướng truyền, thời gian giữa packet      |
+| Phương pháp      | Học có giám sát, phát hiện bất thường từ benign và học chuỗi bằng CNN |
+| Sản phẩm          | Ba baseline, evaluator chung và dashboard so sánh kết quả                       |
+| Phạm vi            | Phân tích offline trên dataset; chưa triển khai IDS thời gian thực           |
 
 ### Cơ sở lý thuyết
 
 **Flow và packet sequence.** Flow gom các packet thuộc một luồng giao tiếp để tính các thống kê như duration, lượng byte và phân bố thời gian/kích thước. Packet sequence giữ thứ tự các gói để mô hình học biến thiên theo thời gian. Dù payload được mã hóa, độ dài, thời điểm và hướng truyền vẫn cung cấp dấu hiệu có thể dùng để phân loại.
 
-| Mô hình | Nguyên lý | Đầu vào trong dự án | Điểm cần khảo sát |
-|---|---|---|---|
-| **XGBoost** | Kết hợp nhiều cây quyết định theo boosting, các cây sau cải thiện hàm mục tiêu của tổ hợp | 29 thống kê flow; train có cả hai nhãn | Hiệu quả phân loại trên đặc trưng dạng bảng |
-| **Isolation Forest** | Cô lập mẫu bằng các phép chia ngẫu nhiên; mẫu bất thường thường có đường đi cô lập ngắn hơn | 29 thống kê đã scale; chỉ fit benign train | Khả năng phát hiện tunnel từ mô hình học lưu lượng bình thường và mức cảnh báo sai |
-| **1D-CNN** | Tích chập một chiều học các mẫu cục bộ trên chuỗi packet | Tối đa 32 packet, 3 kênh length/direction/IAT, kèm mask | Khả năng khai thác cấu trúc và thứ tự packet |
+| Mô hình                  | Nguyên lý                                                                                                        | Đầu vào trong dự án                                    | Điểm cần khảo sát                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **XGBoost**          | Kết hợp nhiều cây quyết định theo boosting, các cây sau cải thiện hàm mục tiêu của tổ hợp         | 29 thống kê flow; train có cả hai nhãn                 | Hiệu quả phân loại trên đặc trưng dạng bảng                                                |
+| **Isolation Forest** | Cô lập mẫu bằng các phép chia ngẫu nhiên; mẫu bất thường thường có đường đi cô lập ngắn hơn | 29 thống kê đã scale; chỉ fit benign train             | Khả năng phát hiện tunnel từ mô hình học lưu lượng bình thường và mức cảnh báo sai |
+| **1D-CNN**           | Tích chập một chiều học các mẫu cục bộ trên chuỗi packet                                                | Tối đa 32 packet, 3 kênh length/direction/IAT, kèm mask | Khả năng khai thác cấu trúc và thứ tự packet                                                 |
 
-Isolation Forest không dùng malicious để fit cây, nhưng **nhãn validation vẫn được dùng để chọn cấu hình/ngưỡng**. CNN cần mask để xử lý padding; chỉ lưu mask trong file chưa đủ để mô hình sử dụng nó.
+Isolation Forest fit cây trên các flow benign và dùng nhãn ngoài fold để chọn ngưỡng phát hiện. 1D-CNN dùng mask trong các lớp tích chập và khi gộp đặc trưng để bỏ qua padding.
 
 ### Câu hỏi thực nghiệm và điểm nhấn
 
@@ -48,17 +38,9 @@ Isolation Forest không dùng malicious để fit cây, nhưng **nhãn validatio
 
 ---
 
-## Bắt đầu từ đâu?
+## Bắt đầu
 
-1. Đọc [Hướng dẫn sử dụng dữ liệu huấn luyện](docs/TRAINING_GUIDE.md): nhận và giải nén `common.tar.gz`, chọn đúng dữ liệu, nạp đầu vào và xuất prediction.
-2. Mở [Công việc triển khai](TODO.md) để xem phần code của mình.
-3. Làm việc trên nhánh tương ứng theo [hướng dẫn branch](docs/branch_guide.md).
-
-Pipeline dữ liệu đã có và common đã sẵn sàng để train. Các module mô hình, evaluator và dashboard hiện là khung cần triển khai. B/C/D có thể bắt đầu song song ngay sau khi nhận dữ liệu. B/C/D chỉ train và xuất model/thông tin theo [quy ước bàn giao](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu); A tổng hợp metric, biểu đồ, so sánh và dashboard.
-
-## Thiết lập môi trường
-
-Python 3.10+ và Git; khuyến nghị Linux/Ubuntu.
+Cần **Python 3.11 trở lên** và Git. Các lệnh dưới đây dùng shell Linux hoặc macOS và chạy từ thư mục gốc của repo.
 
 ```bash
 git clone https://github.com/doandangkhoa/DoH-tunneling-detection.git
@@ -68,135 +50,150 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-A gửi gói `common.tar.gz` qua kho chia sẻ của nhóm.
+Nhận `common.tar.gz` từ kho chia sẻ của nhóm rồi giải nén vào thư mục gốc. Trên máy đã tạo gói, file nằm ở `data/exports/common.tar.gz`.
 
 ```bash
 tar -xzf common.tar.gz
 ```
 
-Dùng cùng gói dữ liệu cho cả ba mô hình. Không cần chạy lại xử lý PCAP. Mỗi thành viên triển khai CLI trong module phụ trách và bổ sung lệnh chạy vào tài liệu khi dùng được.
+Giữ nguyên các đường dẫn khi bàn giao dữ liệu. Git bỏ qua các file dữ liệu, checkpoint và dự đoán lớn.
 
-## Phân công và đầu vào
+| Dùng cho               | File cần có                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| Cả ba mô hình        | `splits/common_folds.parquet`                                                                     |
+| XGBoost                 | `data/processed/xgboost/common/{development,test}.npz` và `data/interim/flow_features.parquet` |
+| Isolation Forest        | `data/processed/isolation_forest/common/{development,test}.npz`, có mảng `X_raw`              |
+| 1D-CNN                  | `data/processed/cnn1d/{development,test}.npz`, có `X_raw` và `mask`                         |
+| Đánh giá theo nguồn | `data/processed/cnn1d/test_metadata.parquet`                                                      |
 
-| Thành viên | Phần triển khai | Dữ liệu dùng khi so sánh chung | Nhánh |
-|---|---|---|---|
-| A | Dữ liệu, evaluator, so sánh và dashboard | `src/data/`, `src/evaluation/`, `scripts/`, `dashboard/` | `feature/data-pipeline` |
-| B | Train XGBoost và xuất kết quả | `data/processed/xgboost/common/` | `feature/xgboost` |
-| C | Train Isolation Forest và xuất kết quả | `data/processed/isolation_forest/common/` | `feature/isolation-forest` |
-| D | Train 1D-CNN và xuất kết quả | `data/processed/cnn1d/` | `feature/cnn1d` |
+Nếu gói CNN1D còn chứa `train.npz` và `val.npz` riêng, tạo file phát triển một lần sau khi giải nén. Lệnh này cần manifest 3 fold ở đúng đường dẫn trong bảng.
 
-Common có 168.597 flow train, 8.092 val và 13.411 test. IF train chỉ gồm 5.383 benign trong common train; val/test giống hai mô hình còn lại. Chi tiết shape, array keys, mask và code nạp dữ liệu nằm trong [training guide](docs/TRAINING_GUIDE.md#2-mỗi-thành-viên-dùng-bộ-nào).
+```bash
+python scripts/prepare_cnn1d_development.py
+```
 
-## Luồng triển khai
+## Chạy mô hình
+
+Chạy `train` rồi `predict` cho mô hình cần đánh giá. Cả ba lệnh `predict` đều in chỉ số test ngay trong terminal. Chạy cả ba cặp lệnh để tạo đầy đủ dữ liệu cho dashboard và báo cáo chung.
+
+```bash
+# XGBoost
+python -m src.xgboost.train && python -m src.xgboost.predict
+
+# Isolation Forest
+python -m src.isolation_forest.train && python -m src.isolation_forest.predict
+
+# 1D-CNN
+python -m src.cnn1d.train && python -m src.cnn1d.predict
+```
+
+CNN1D chạy 30 epoch cho từng lượt trong ba fold và 30 epoch cho mô hình cuối. Khi chạy trên CPU, có thể đặt `OMP_NUM_THREADS=2` và `MKL_NUM_THREADS=2` để tái hiện cấu hình giới hạn luồng đã dùng trong lần chạy báo cáo. Mỗi lệnh `predict` ghi `outputs/<model>/predictions.parquet` với ID, nhãn thật, điểm dự đoán, ngưỡng và nhãn dự đoán. Checkpoint và cấu hình của lần chạy nằm trong `models/<model>/` và `experiments/<model>/`.
+
+## Quy trình đánh giá
 
 ```mermaid
 flowchart LR
-    A["A: Dữ liệu common"] --> B["B: XGBoost"]
-    A --> C["C: Isolation Forest"]
-    A --> D["D: 1D-CNN"]
-    B --> P["Prediction cùng test IDs"]
-    C --> P
-    D --> P
-    P --> Q["A: Kiểm tra ID và nhãn"]
-    Q --> E["A: Evaluator và so sánh"]
-    E --> U["A: Dashboard và demo"]
+    D["Tập phát triển · 176.689 flow"] --> F["Manifest chung · 3 fold theo nhóm"]
+    F --> X["XGBoost"]
+    F --> I["Isolation Forest"]
+    F --> C["1D-CNN"]
+    X --> O["Chọn ngưỡng ngoài fold"]
+    I --> O
+    C --> O
+    O --> P["Model cuối và ngưỡng đã khóa"]
+    T["Tập test giữ riêng · 13.411 flow"] --> E["Đánh giá và so sánh"]
+    P --> E
+    E --> R["Báo cáo và dashboard"]
 ```
 
-Train dùng để học mô hình; validation để chọn cấu hình và threshold. Chỉ chạy đánh giá test cuối sau khi khóa mô hình/ngưỡng. Không tự chia lại dữ liệu hoặc fit preprocessing trên val/test.
+Bộ `common` có **190.100 flow**. Tập phát triển gồm **176.689 flow** từ train và validation cũ. Tập test giữ riêng **13.411 flow**, gồm 6.792 benign và 6.619 tunnel.
 
-Mỗi mô hình xuất `outputs/<model>/predictions.parquet` gồm `sample_id`, `model`, `y_true`, `y_score`, `y_pred`, `threshold`, `split`. Score càng cao càng nghi malicious; IF score không nhất thiết là xác suất. Ba file phải khớp toàn bộ ID và nhãn test. Tên file model, config, số liệu runtime và kết quả evaluator được thống nhất tại [bảng đầu ra của từng người](docs/TRAINING_GUIDE.md#41-mỗi-người-cần-lưu-gì-và-để-ở-đâu). Xem [chuẩn prediction và đánh giá](docs/TRAINING_GUIDE.md#4-xuất-kết-quả-để-so-sánh-chung).
+1. Dùng cùng manifest để chia tập phát triển thành 3 fold theo nhóm thu thập.
+2. Mỗi lượt fit tiền xử lý và mô hình trên phần huấn luyện, rồi chấm điểm fold giữ riêng. Gộp dự đoán ngoài fold để chọn ngưỡng.
+3. Xét các ngưỡng đạt Recall tunnel ngoài fold ít nhất **99%** và chọn ngưỡng có FPR thấp nhất trên trình duyệt bị báo nhầm nhiều hơn.
+4. Fit mô hình cuối trên tập phát triển theo quy tắc của từng mô hình, rồi áp dụng ngưỡng đã khóa lên test. Recall thực tế trên test có thể khác 99%.
 
-## Các bước tiếp theo và sản phẩm cuối
+| Mô hình                                        | Đầu vào và cách học                                                                                                                                   |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [XGBoost](configs/xgboost.yaml)                   | 29 thống kê toàn flow, học có giám sát từ cả hai lớp.                                                                                             |
+| [Isolation Forest](configs/isolation_forest.yaml) | Cùng 29 thống kê flow. Fit cây và tiền xử lý chỉ trên benign, gồm 6.818 flow cho mô hình cuối. Điểm cao hơn biểu thị bất thường hơn. |
+| [1D-CNN](configs/cnn1d.yaml)                      | Tối đa 32 packet đầu, với độ dài, hướng truyền, thời gian giữa các gói và mask để xử lý padding.                                        |
 
-Vòng triển khai đầu dùng **một cấu hình baseline, một seed cho mỗi mô hình**, CNN cố định 32 packet. Cả nhóm dùng common 190.100 flow, seed 42; chưa cần train thêm bộ full. Xem [phạm vi huấn luyện đã thống nhất](docs/TRAINING_GUIDE.md#phạm-vi-huấn-luyện-đã-thống-nhất). Mục tiêu là có luồng chạy hoàn chỉnh với kết quả thực và giải thích được; chưa cần tìm kiếm tham số lớn.
+## Dashboard và báo cáo
 
-| Bước | Phụ trách | Việc làm | Sản phẩm |
-|---|---|---|---|
-| 1. Train baseline | B/C/D | Nạp common, train theo YAML, chọn threshold bằng validation | Model/checkpoint, config, validation score, threshold đã khóa |
-| 2. Predict test | B/C/D; A nhận kết quả | Sau khi khóa model/ngưỡng, xuất prediction trên cùng test set | Ba file `predictions.parquet`, đủ 13.411 ID và nhãn đúng |
-| 3. Đánh giá | A | Chạy một evaluator cho cả ba mô hình | Bảng Precision/Recall/F1/AP/FPR, confusion matrix và PR curve |
-| 4. Phân tích ngắn | A | Recall/support theo công cụ, FPR theo browser; xem vài FP/FN thực tế | Bảng phân nhóm và nhận xét dựa trên kết quả |
-| 5. Đo chi phí | B/C/D ghi số đo; A đo lại để so sánh | Cùng máy và test set; ghi batch size, warm-up và phạm vi đo | Thời gian train/inference, kích thước model |
-| 6. Demo | A | Dashboard một trang đọc sẵn prediction và metric | So sánh ba mô hình, biểu đồ và ví dụ dự đoán sai |
-| 7. Chạy lại | A + cả nhóm | Thử từ môi trường sạch và bổ sung lệnh CLI thực tế | Hướng dẫn tái hiện kết quả và demo hoạt động |
+Chạy **DoH Model Lab** rồi mở [http://127.0.0.1:8511/](http://127.0.0.1:8511/).
 
-AP dùng `average_precision_score`; FPR = FP / (FP + TN), Recall = TP / (TP + FN). Báo cáo support cùng chỉ số theo nguồn. Accuracy có thể bổ sung, không dùng riêng để kết luận. Thời gian inference offline không chứng minh hệ thống chạy thời gian thực.
+```bash
+python -m streamlit run dashboard/app.py --server.address 127.0.0.1 --server.port 8511 --theme.base light
+```
 
-**Ba kiểm tra bắt buộc:** preprocessing chỉ fit từ train, threshold chọn từ validation và prediction khớp test IDs/nhãn. D bổ sung kiểm thử mask/padding trước khi chốt CNN.
+Dashboard đọc dự đoán có sẵn trong `outputs/`. Chọn mô hình để xem chỉ số test, ma trận nhầm lẫn, đường Precision–Recall và kết quả theo trình duyệt hoặc công cụ tunnel.
 
-**Để sau vòng baseline:** grid search lớn, nhiều seed, CNN 16/64 packet, SHAP/ablation, công cụ chưa xuất hiện trong train và demo nhận PCAP mới. Chi tiết việc từng người nằm ở [TODO](TODO.md); tiến độ trao đổi trong họp nhóm.
+Tạo lại bảng và biểu đồ sau khi có đủ dự đoán và báo cáo lần chạy của cả ba mô hình.
+
+```bash
+python -m src.evaluation.evaluate
+```
+
+Xem [hướng dẫn đọc báo cáo](reports/README.md), [bảng tổng hợp](reports/tables/metrics.csv), [bảng theo nguồn](reports/tables/source_metrics.csv) và [thư mục biểu đồ](reports/figures). Trình đánh giá kiểm tra ID và nhãn test trước khi tổng hợp.
+
+## Kết quả trên tập test chung
+
+| Mô hình        |     F1 | Recall tunnel | FPR benign |     AP |
+| ---------------- | -----: | ------------: | ---------: | -----: |
+| XGBoost          | 97,30% |        96,43% |      1,74% | 99,47% |
+| Isolation Forest | 76,63% |        99,49% |     58,63% | 69,03% |
+| 1D-CNN           | 94,78% |        96,90% |      7,39% | 89,85% |
+
+XGBoost có F1 cao nhất và FPR thấp nhất trong lần chạy này. Isolation Forest phát hiện nhiều tunnel nhất và cũng tạo nhiều cảnh báo sai nhất. AP là Average Precision. FPR là tỷ lệ flow benign bị gắn nhãn tunnel.
+
+Kết quả phản ánh cả phương pháp học và biểu diễn đầu vào. Số nhóm thu thập benign độc lập còn hạn chế, đặc biệt với Chrome. Thời gian inference đã ghi dùng batch và cách warm-up khác nhau, nên chưa đủ để kết luận về tốc độ trong cùng điều kiện.
 
 ## Cấu trúc project
 
 ```text
 DoH-tunneling-detection/
-├── README.md                    # Điểm bắt đầu và tổng quan project
-├── TODO.md                      # Công việc triển khai theo A/B/C/D
-├── requirements.txt             # Thư viện Python
-├── .github/workflows/           # CI kiểm tra cấu trúc và cú pháp
-├── configs/                     # Cấu hình dữ liệu và baseline mô hình
-│   ├── data.yaml                # Nguồn, split và các profile hiện tại
-│   ├── packet_extraction.json   # Phạm vi đọc capture cho pipeline packet
-│   ├── xgboost.yaml             # Đầu vào, tham số, threshold và output của B
-│   ├── isolation_forest.yaml    # Benign-only train, anomaly score và output của C
-│   └── cnn1d.yaml               # Sequence, mask, kiến trúc và train loop của D
-├── docs/                        # Hướng dẫn dùng chung và thao tác Git
-│   ├── TRAINING_GUIDE.md         # Cách đọc dữ liệu và chuẩn prediction
-│   ├── branch_guide.md          # Các lệnh làm việc trên branch
-│   └── git_workflow.md          # Quy trình đưa code vào main
-├── data/                        # Dữ liệu lớn, không commit Git
-│   ├── raw/                     # CSV gốc và ZIP PCAP; đầu vào của A
-│   ├── interim/                 # Master, features, packet mapping và QA của A
-│   │   ├── common/              # Bảng/manifests trung gian của subset chung
-│   │   ├── qa/                  # Thống kê và kiểm tra dữ liệu
-│   │   ├── packet_cache/        # Cache xử lý capture
-│   │   └── versions/            # Snapshot trước khi mở rộng dữ liệu
-│   ├── processed/               # Đầu vào đã xử lý để train
-│   │   ├── xgboost/common/      # B: bảng 29 đặc trưng theo common split
-│   │   ├── isolation_forest/common/ # C: bảng scale, train chỉ benign
-│   │   └── cnn1d/               # D: sequence, mask, ID và nhãn
-│   └── exports/                 # Gói common.tar.gz gửi cho nhóm
-├── splits/                      # Manifest train/val/test của bộ tabular đầy đủ
-├── src/                         # Mã triển khai chính
-│   ├── data/                    # A: pipeline dữ liệu đang sử dụng
-│   │   ├── prepare_dataset.py   # Lọc CSV, tạo master và split theo nhóm
-│   │   ├── prepare_packets.py   # Ghép PCAP–flow và tạo sequence/common
-│   │   └── finalize_training.py # Fit preprocessing từ train và xuất profile mô hình
-│   ├── xgboost/                 # B: loader, train và predict XGBoost
-│   ├── isolation_forest/        # C: loader, train và predict IF
-│   ├── cnn1d/                   # D: sequence loader, model, train và predict CNN
-│   └── evaluation/              # A: metric, evaluator và biểu đồ chung
-├── scripts/                     # Kiểm tra repo, audit/validate và đóng gói dữ liệu
-├── tests/                       # Unit/integration tests; hiện có tests parser PCAP
-├── dashboard/                   # A: ứng dụng Streamlit so sánh kết quả
-├── models/                      # Model đã fit và checkpoint để nạp lại
-├── outputs/                     # Prediction theo từng mô hình
-│   ├── xgboost/
-│   ├── isolation_forest/
-│   └── cnn1d/
-├── experiments/                 # Cấu hình, seed, log và thời gian từng lần chạy
-└── reports/                     # Bảng metric và biểu đồ kết quả thực nghiệm
-    ├── tables/
-    └── figures/
+├── .github/workflows/            # Kiểm tra cấu trúc và cú pháp trên GitHub
+├── configs/                      # Cấu hình dữ liệu và ba mô hình
+├── dashboard/
+│   └── app.py                    # DoH Model Lab chạy bằng Streamlit
+├── data/
+│   ├── raw/                      # CSV và PCAP nguồn
+│   ├── interim/                  # Đặc trưng flow và dữ liệu trung gian
+│   │   └── flow_features.parquet # Đặc trưng trước tiền xử lý cho XGBoost predict
+│   ├── processed/
+│   │   ├── xgboost/common/        # Tập phát triển và test của XGBoost
+│   │   ├── isolation_forest/common/ # Tập phát triển và test của Isolation Forest
+│   │   └── cnn1d/                # Chuỗi packet, mask và metadata test
+│   └── exports/                  # Gói bàn giao common.tar.gz
+├── docs/                         # Hướng dẫn dữ liệu và quy trình Git
+├── experiments/                  # Ngưỡng đã khóa, log và số liệu lần chạy
+├── models/                       # Checkpoint và tham số tiền xử lý
+├── outputs/
+│   ├── xgboost/                  # predictions.parquet
+│   ├── isolation_forest/         # predictions.parquet
+│   └── cnn1d/                    # predictions.parquet
+├── reports/
+│   ├── README.md                 # Cách đọc và tạo lại báo cáo
+│   ├── figures/                  # Ma trận nhầm lẫn, đường PR và biểu đồ theo nguồn
+│   └── tables/                   # Chỉ số tổng hợp, runtime và mẫu dự đoán sai
+├── scripts/                      # Chuẩn bị dữ liệu fold, audit và đóng gói
+├── splits/
+│   └── common_folds.parquet      # Manifest 3 fold dùng chung
+├── src/
+│   ├── data/                    # Chuẩn bị dữ liệu từ CSV và PCAP
+│   ├── xgboost/                 # Train và predict XGBoost
+│   ├── isolation_forest/        # Train và predict Isolation Forest
+│   ├── cnn1d/                   # Loader, mô hình, train và predict 1D-CNN
+│   └── evaluation/
+│       ├── evaluate.py          # Đọc và đối chiếu dự đoán test
+│       ├── metrics.py           # Tính chỉ số phân loại
+│       └── plots.py             # Xuất hình cho báo cáo
+├── tests/                        # Kiểm thử dữ liệu và mô hình
+├── requirements.txt
+├── TODO.md
+└── README.md
 ```
-
-`data/processed/xgboost/` và `data/processed/isolation_forest/` trên máy A còn chứa bộ full ngoài thư mục `common/`.
-
-## Dùng cấu hình
-
-| File | Người dùng | Vai trò |
-|---|---|---|
-| [data.yaml](configs/data.yaml) | A và cả nhóm | Mô tả nguồn, profile và split hiện tại; seed đã chọn là 1798, không phải seed train 42 |
-| [packet_extraction.json](configs/packet_extraction.json) | A | `prepare_packets.py` đọc trực tiếp: đọc toàn bộ capture browser và tunnel có sẵn, không giới hạn dns2tcp |
-| [xgboost.yaml](configs/xgboost.yaml) | B | Common `X`, feature order, tham số XGBoost và đường dẫn output |
-| [isolation_forest.yaml](configs/isolation_forest.yaml) | C | Common `X` đã scale benign-only, score đảo chiều và đường dẫn output |
-| [cnn1d.yaml](configs/cnn1d.yaml) | D | Common sequence 32 packet, 3 kênh, mask và baseline Conv1d |
-
-Các YAML mô hình là cấu hình baseline để B/C/D nối vào CLI đang triển khai; hiện chưa có trainer đọc chúng. `data.yaml` mô tả pipeline hiện tại, chưa điều khiển `prepare_dataset.py`. Mọi đường dẫn tính từ root repository. Truyền riêng phần `model` vào estimator XGBoost/IF; loader, lựa chọn threshold và ghi output do CLI xử lý.
-
-Cả ba cấu hình dùng validation AP để chọn mô hình và tối đa F1 trên validation để chọn threshold baseline. `threshold.value: null` nghĩa là chưa chọn ngưỡng; phải lưu giá trị đã chọn trước khi predict test. Đây là cấu hình khởi đầu, chưa được tuning. Tham số imputer/scaler thực tế nằm trong `preprocessing.json` cạnh dữ liệu; không fit lại hay scale thêm. Quy tắc mask và ví dụ nạp dữ liệu xem [training guide](docs/TRAINING_GUIDE.md).
-
-Chỉ commit code, cấu hình và tài liệu. Dữ liệu, môi trường Python và model lớn được Git ignore. Quy trình đưa code vào `main` xem [Git workflow](docs/git_workflow.md).
 
 ## Kiểm tra
 
@@ -205,4 +202,4 @@ python scripts/verify_repository.py
 python -m pytest -q
 ```
 
-Kiểm tra cấu trúc không chứng minh mô hình đã hoạt động. Các kiểm tra dữ liệu đầy đủ dành cho A nằm ở [cuối training guide](docs/TRAINING_GUIDE.md#6-dành-cho-a-tái-tạo-và-đóng-gói)..
+Xem thêm [hướng dẫn dữ liệu](docs/TRAINING_GUIDE.md), [quy trình Git](docs/git_workflow.md) và [phân công nhóm](TODO.md).
