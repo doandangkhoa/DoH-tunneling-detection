@@ -133,6 +133,14 @@ if test_features is not None:
             "Thứ tự feature trong Test không khớp model."
         )
 
+if threshold_config["method"] == "minimize_worst_browser_fpr":
+    preprocessing = json.loads((model_dir / "preprocessing.json").read_text())
+    raw = pd.read_parquet("data/interim/flow_features.parquet").set_index("sample_id")
+    X_test = raw.loc[test_ids, preprocessing["features"]].fillna(
+        preprocessing["median"]
+    ).to_numpy()
+    validate_data(X_test, y_test, test_ids, test_features)
+
 model = xgb.XGBClassifier()
 model.load_model(str(model_path))
 

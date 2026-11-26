@@ -145,7 +145,7 @@ def validate():
                     assert np.array_equal(table.sample_id,result['sample_id'])
                     assert np.array_equal(table[cols].to_numpy(),result['X'])
                     assert np.array_equal(pd.read_csv(target/f'{split}_ids.csv').sample_id,result['sample_id'])
-                if profile=='common':
+                if profile=='common' and split=='test':
                     with np.load(ROOT/f'data/processed/xgboost/common/{split}.npz',allow_pickle=False) as result:
                         assert np.array_equal(result['sample_id'],source['sample_id'])
                         assert np.array_equal(result['X'],source['X']) and np.array_equal(result['y'],source['y'])
@@ -156,6 +156,23 @@ def validate():
                         assert np.array_equal(tab.label, result['y'])
                         assert np.array_equal(tab[cols].to_numpy(), result['X'])
                         assert np.array_equal(pd.read_csv(ROOT/f'data/processed/xgboost/common/{split}_ids.csv').sample_id, result['sample_id'])
+    development = ROOT/'data/processed/xgboost/common/development.npz'
+    if development.exists():
+        ids = np.concatenate([
+            pd.read_csv(ROOT/f'data/interim/common/{split}_ids.csv').sample_id.to_numpy()
+            for split in ['train', 'val']
+        ])
+        with np.load(development, allow_pickle=False) as z:
+            assert np.array_equal(z['sample_id'], ids)
+            assert np.array_equal(z['y'], master.loc[ids, 'label'])
+            assert np.array_equal(z['feature_names'], cols)
+            assert np.array_equal(z['X_raw'], features.loc[ids, cols], equal_nan=True)
+        manifest = pd.read_parquet(ROOT/'splits/common_folds.parquet').set_index('sample_id')
+        assert manifest.index.is_unique and set(manifest.index) == set(ids)
+        assert np.array_equal(manifest.loc[ids, 'label'], master.loc[ids, 'label'])
+        assert np.array_equal(manifest.loc[ids, 'split_group'], master.loc[ids, 'split_group'])
+        assert set(manifest.fold) == {0, 1, 2}
+        assert manifest.groupby('split_group').fold.nunique().eq(1).all()
     # A small fit proves the arrays are accepted by conventional estimators;
     # no test scores or model choices are produced.
     from sklearn.tree import DecisionTreeClassifier
@@ -203,8 +220,9 @@ def validate():
                 assert np.array_equal(meta.sample_id,z['sample_id'])
                 assert np.array_equal(meta.label,z['y'])
                 assert np.array_equal(meta.source,master.loc[z['sample_id'],'source'])
-            tab_meta=pd.read_parquet(ROOT/f'data/processed/xgboost/common/{split}_metadata.parquet')
-            assert meta.equals(tab_meta)
+            if split=='test':
+                tab_meta=pd.read_parquet(ROOT/'data/processed/xgboost/common/test_metadata.parquet')
+                assert meta.equals(tab_meta)
             if_meta=pd.read_parquet(ROOT/f'data/processed/isolation_forest/common/{split}_metadata.parquet')
             expected=meta.loc[meta.label==0] if split=='train' else meta
             assert if_meta.reset_index(drop=True).equals(expected.reset_index(drop=True))

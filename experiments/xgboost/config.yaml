@@ -1,11 +1,11 @@
 data:
   directory: data/processed/xgboost/common
+  development_file: development.npz
+  fold_manifest: splits/common_folds.parquet
   input_key: X
   label_key: y
   id_key: sample_id
   feature_names_key: feature_names
-  preprocessing_file: data/processed/xgboost/common/preprocessing.json
-  refit_preprocessing: false
 model:
   random_state: 42
   objective: binary:logistic
@@ -16,19 +16,12 @@ model:
   subsample: 0.8
   colsample_bytree: 0.8
   scale_pos_weight: 1.0
-selection:
-  split: val
-  metric: average_precision
 threshold:
-  split: val
-  method: maximize_f1
-  value: 0.03797249123454094
+  split: grouped_out_of_fold
+  method: minimize_worst_browser_fpr
+  minimum_recall: 0.99
+  value: 0.8549129962921143
 output:
   model_directory: models/xgboost
   predictions_file: outputs/xgboost/predictions.parquet
   experiment_directory: experiments/xgboost
-experiment:
-  model: xgboost
-  data_profile: common
-  seed: 42
-  selected_epoch: null
