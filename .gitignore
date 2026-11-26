@@ -23,7 +23,6 @@ models/**
 outputs/**
 !outputs/**/
 !outputs/**/.gitkeep
-reports/figures/**
 !reports/figures/.gitkeep
 
 # Large data and weights, wherever they might be copied
