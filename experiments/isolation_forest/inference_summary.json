@@ -1,0 +1,10 @@
+{
+  "split": "test",
+  "num_samples": 13411,
+  "batch_size": 13411,
+  "warmup_samples": 256,
+  "inference_seconds": 0.0782,
+  "ms_per_sample": 0.005831,
+  "threshold_used": 0.49049001610865683,
+  "predicted_positive_rate": 0.787935
+}

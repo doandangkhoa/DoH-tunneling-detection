@@ -1,12 +1,11 @@
-# C: đặc tả baseline cho CLI train/predict cần triển khai.
+# Baseline Isolation Forest dùng chung manifest 3 fold với XGBoost.
 data:
   directory: data/processed/isolation_forest/common
-  input_key: X
+  input_key: X_raw
+  fold_manifest: splits/common_folds.parquet
   label_key: y
   id_key: sample_id
   feature_names_key: feature_names
-  preprocessing_file: data/processed/isolation_forest/common/preprocessing.json
-  refit_preprocessing: false  # X đã scale từ benign common train.
 training:
   benign_only: true
   benign_label: 0
@@ -18,12 +17,10 @@ model:
   n_jobs: 1
 score:
   method: negative_score_samples  # y_score = -model.score_samples(X)
-selection:
-  split: val
-  metric: average_precision
 threshold:
-  split: val
-  method: maximize_f1
+  split: grouped_out_of_fold
+  method: minimize_worst_browser_fpr
+  minimum_recall: 0.99
   value: null
 output:
   model_directory: models/isolation_forest

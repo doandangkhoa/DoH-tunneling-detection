@@ -1,0 +1,17 @@
+{
+  "model": "isolation_forest",
+  "seed": 42,
+  "train_samples": 6818,
+  "development_samples": 176689,
+  "test_samples": 13411,
+  "train_seconds": 1.4150999129997217,
+  "model_size_bytes": 2208029,
+  "score_method": "negative_score_samples",
+  "threshold_method": "minimize_worst_browser_fpr",
+  "threshold": 0.49049001610865683,
+  "recall_target": 0.99,
+  "oof_recall": 0.9900807083021822,
+  "oof_chrome_fpr": 0.884016973125884,
+  "oof_firefox_fpr": 0.09196530846015383,
+  "oof_average_precision": 0.9964316102142412
+}

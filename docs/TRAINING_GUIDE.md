@@ -88,7 +88,7 @@ data/
 | Người | Mô hình | Thư mục cần mở | Đầu vào chính |
 |---|---|---|---|
 | B | XGBoost | `data/processed/xgboost/common/` | `X`: bảng 29 đặc trưng mỗi flow |
-| C | Isolation Forest | `data/processed/isolation_forest/common/` | `X`: bảng đã scale; train chỉ benign |
+| C | Isolation Forest | `data/processed/isolation_forest/common/` | `X_raw`: đặc trưng flow để fit preprocessing riêng trong mỗi fold; model chỉ học benign |
 | D | 1D-CNN | `data/processed/cnn1d/` | `X`: chuỗi 32 packet × 3 kênh, kèm `mask` |
 
 **Để so sánh ba mô hình, dùng đúng ba thư mục trên.** Trên máy A còn có bộ bảng đầy đủ tại `data/processed/xgboost/` và `data/processed/isolation_forest/`, gồm 261.355 flow trước khi lấy subset common. Bộ đầy đủ dành cho thí nghiệm bổ sung, không nằm trong gói bàn giao.
@@ -160,26 +160,21 @@ print(frame.head().to_string(index=False))
 
 ### C — Nạp dữ liệu Isolation Forest
 
-```python
-from pathlib import Path
-import numpy as np
-from sklearn.ensemble import IsolationForest
+Baseline 3 fold đọc `development.npz`, `test.npz` và manifest chung
+`splits/common_folds.parquet`. Hai NPZ nằm trong
+`data/processed/isolation_forest/common/` và chứa `X_raw`, `sample_id`, `y`
+và `feature_names`. Nếu đang dùng gói cũ, lấy gói common đã cập nhật.
 
-folder = Path("data/processed/isolation_forest/common")
-with np.load(folder / "train.npz", allow_pickle=False) as data:
-    X_train, y_train = data["X"], data["y"]
-with np.load(folder / "val.npz", allow_pickle=False) as data:
-    X_val, y_val = data["X"], data["y"]
-    val_ids = data["sample_id"]
-
-assert (y_train == 0).all()
-print(X_train.shape)  # (5383, 29)
-model = IsolationForest(random_state=42, n_jobs=1).fit(X_train)
-val_scores = -model.score_samples(X_val)  # Điểm cao = nghi malicious hơn
-# Chọn threshold từ val_scores/y_val, rồi giữ cố định cho test.
+```bash
+python -m src.isolation_forest.train
+python -m src.isolation_forest.predict
 ```
 
-`X` ở thư mục IF đã được impute và robust-scale bằng tham số học **chỉ từ benign common train**. Không scale thêm lần nữa; không lấy benign của bộ full thay cho common train. IF score không phải xác suất.
+Mỗi lượt fit imputation, robust scaling và Isolation Forest trên benign của
+hai fold huấn luyện. Train dùng các dự đoán ngoài fold để chọn ngưỡng, sau đó
+fit model cuối trên toàn bộ benign của tập phát triển. Predict nạp ngưỡng đã
+khóa và báo cáo kết quả test. Model và tham số tiền xử lý được lưu cùng nhau
+trong `models/isolation_forest/`.
 
 ### D — Nạp dữ liệu CNN
 

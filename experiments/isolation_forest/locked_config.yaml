@@ -1,0 +1,27 @@
+data:
+  directory: data/processed/isolation_forest/common
+  input_key: X_raw
+  fold_manifest: splits/common_folds.parquet
+  label_key: y
+  id_key: sample_id
+  feature_names_key: feature_names
+training:
+  benign_only: true
+  benign_label: 0
+model:
+  random_state: 42
+  n_estimators: 200
+  max_samples: auto
+  contamination: auto
+  n_jobs: 1
+score:
+  method: negative_score_samples
+threshold:
+  split: grouped_out_of_fold
+  method: minimize_worst_browser_fpr
+  minimum_recall: 0.99
+  value: 0.49049001610865683
+output:
+  model_directory: models/isolation_forest
+  predictions_file: outputs/isolation_forest/predictions.parquet
+  experiment_directory: experiments/isolation_forest
