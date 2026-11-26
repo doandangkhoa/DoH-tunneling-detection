@@ -30,7 +30,9 @@ import numpy as np
 import pandas as pd
 import yaml
 import xgboost as xgb
+from sklearn.metrics import classification_report
 
+from src.evaluation.metrics import binary_metrics
 from src.xgboost.preprocess import load_npz, validate_data
 
 
@@ -303,4 +305,26 @@ print("\nArtifacts:")
 print(f"- {prediction_path}")
 print(f"- {summary_path}")
 
-print("\nTest predictions completed.")
+metrics = binary_metrics(y_test, y_pred, y_scores)
+print("\nXGBOOST - TEST EVALUATION")
+print("Confusion matrix (rows: actual, columns: predicted)")
+print("                 Benign  Tunnel")
+print(f"Actual benign    {metrics['tn']:6d}  {metrics['fp']:6d}")
+print(f"Actual tunnel    {metrics['fn']:6d}  {metrics['tp']:6d}")
+for label, key in (
+    ("Accuracy", "accuracy"),
+    ("Precision", "precision"),
+    ("Recall", "recall"),
+    ("F1-score", "f1"),
+    ("FPR", "fpr"),
+    ("ROC-AUC", "roc_auc"),
+    ("AP", "ap"),
+):
+    value = metrics[key]
+    formatted = f"{value:.6f}" if np.isfinite(value) else "N/A"
+    print(f"{label + ':':<11}{formatted}")
+print()
+print(classification_report(
+    y_test, y_pred, labels=[0, 1], target_names=["Benign", "Tunnel"],
+    digits=6, zero_division=0,
+))
